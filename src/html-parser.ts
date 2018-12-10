@@ -6,6 +6,7 @@ import { Directive } from './ast/directive';
 import { Element } from './ast/element';
 import { Text } from './ast/text';
 import { defaultConfig } from './config';
+import { orderAttributes } from './order-attributes';
 import { ParseLocation } from './parse-location';
 import { ParseSourceSpan } from './parse-source-span';
 import { Parser } from './parser';
@@ -76,7 +77,7 @@ export class HtmlParser extends Parser {
   private onTag(_name: string): void {
     const span = this.currentSpan();
     const attrs = this.parseTag(this.source.content.substring(span.start.offset + 1, span.end.offset - 1), span.start.line, span.start.col);
-    const node = new Element(attrs.shift().name, attrs, [], span);
+    const node = new Element(attrs.shift().name, orderAttributes(attrs, this.config), [], span);
     this.add(node, this._parser['_stack'].length - (Element.isVoid(node) ? 0 : 1));
   }
 

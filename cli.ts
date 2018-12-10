@@ -2,7 +2,14 @@
  * LML-related CLI tool
  * Converts from HTML/LML to HTML/JSON/LML
  * Usage:
- * lml [--from=html|lml] [--to=html|lml|json] [--minify] [--indentation=INDENT_SPEC] [--out=outfile] source.html
+ * lml [options] source.html
+ * Options:
+ *   --from=html|lml
+ *   --to=html|lml|json
+ *   --minify
+ *   --order-attributes[=angular|natural]
+ *   --indentation=INDENT_SPEC
+ *   --out=outfile
  * Note:
  *   --indentation allows for spaces or tab. Defaults to 2 spaces ("  "). You may use "s" or "t" to keep your CLI argument sane
  *   --minify only works with HTML and JSON outputs and is mutually exclusive with --indentation
@@ -86,15 +93,23 @@ if (args.minify) {
   args.indentation = '';
 }
 
+if (args['order-attributes'] && [true, 'angular', 'natural'].indexOf(args['order-attributes']) === -1) {
+  error('unknown order-attributes value: ' + args['order-attributes']);
+}
+
 readFile(url, 'utf8', (readErr, src) => {
   error(readErr);
 
-  const ast = (args.from === 'html' ? new HtmlParser(url, src) : new LmlParser(url, src)).ast;
-  if (ast.errors && ast.errors.length) {
-    error(...ast.errors);
+  const parser = (args.from === 'html' ? new HtmlParser(url, src) : new LmlParser(url, src));
+  if (parser.error) {
+    error(...parser.errors);
   }
 
-  const out = ast[convertMethods[args.to]]({indentation: args.indentation, minify: !!args.minify});
+  const out = parser[convertMethods[args.to]]({
+    indentation: args.indentation,
+    minify: !!args.minify,
+    orderAttributes: args['order-attributes']
+  });
 
   if (args.out) {
     writeFile(args.out, out, (writeErr) => {

@@ -1,10 +1,11 @@
 import { CData } from './ast/cdata';
 import { Comment } from './ast/comment';
 import { Directive } from './ast/directive';
-import { Element } from './ast/element';
+import { Element, TEXT_BLOCK_ELEMENTS } from './ast/element';
 import { Node } from './ast/node';
 import { Text } from './ast/text';
 import { defaultConfig } from './config';
+import { orderAttributes } from './order-attributes';
 import { ParseLocation } from './parse-location';
 import { INDENTATION_REGEX } from './parse-source-file';
 import { ParseSourceSpan } from './parse-source-span';
@@ -87,7 +88,7 @@ export class LmlParser extends Parser {
           [node, i] = this.parseElement(trimmed, i, spaces, lines, len, indentation);
         }
 
-        if (this.ast.errors.length) {
+        if (this.error) {
           break;
         }
        this.add(node, level);
@@ -105,7 +106,7 @@ export class LmlParser extends Parser {
 
   private directiveMultilineBlock(lines: string[], len: number, i: number, spaces: number, node: Comment | CData | Text): number {
     const bi = this.source.blockIndentation;
-    if (!this.ast.errors.length) {
+    if (!this.error) {
       const expectedTabulation = lines[i].substr(bi, spaces) + this.config.indentation;
       const indentationLen = this.config.indentation.length;
       while (i < len - 1 && (!lines[i + 1].trim() || lines[i + 1].substr(bi, spaces + indentationLen) === expectedTabulation)) {
@@ -137,9 +138,10 @@ export class LmlParser extends Parser {
         (<Element>node).attrs.push(...this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1));
       }
     }
+    orderAttributes(node.attrs, this.config);
 
     // script or style block contents
-    if (!this.ast.errors.length && (<Element>node).name === 'script' || (<Element>node).name === 'style') {
+    if (!this.error && TEXT_BLOCK_ELEMENTS.indexOf((<Element>node).name) > -1) {
       const startLine = i + 1;
       let content = '';
       const expectedTabulation = lines[i].substr(bi, spaces) + indentation;

@@ -81,20 +81,11 @@ export abstract class Node {
   }
 
   /**
-   * Will sanitize indentation for a multiline text (including script/style/cdata/comment data) block
+   * Will prefix indentation for an LML multiline text (script/style/cdata/comment/textarea/pre data) block
    */
-  protected multilineSanitizer(value: string, config: Config, tabulation: string, startOnNextLine = false): string {
-    let min: number;
-    let lines = value.split('\n');
-    lines.forEach((line, i) => {
-      const spaces = line.match(/^\s*/)[0].length;
-      if (i && (min == null || spaces < min) && line.trim()) {
-        min = spaces;
-      }
-    });
-    if (min != null) {
-      lines = lines.map((line, i) => i ? line.substr(min) : line.trim());
-    }
-    return (startOnNextLine ? tabulation + config.indentation : '') + lines.join(`\n${tabulation}${config.indentation}`);
+  protected lmlMultilineIndentation(value: string, config: Config, tabulation: string, startOnNextLine = false): string {
+    return value.split('\n').map((line, i) => {
+      return startOnNextLine || i ? tabulation + config.indentation + line : line;
+    }).join('\n');
   }
 }

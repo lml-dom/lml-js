@@ -25,7 +25,7 @@ export class CData extends Node {
     const data = this.data.trim();
     const lf = config.minify ? '' : '\n';
     const spc = config.minify ? '' : ' ';
-    return data ? `${tabulation}<![CDATA[${spc}${this.multilineSanitizer(data, config, tabulation)}${spc}]]>${lf}` : '';
+    return data ? `${tabulation}<![CDATA[${spc}${data}${spc}]]>${lf}` : '';
   }
 
   public toJSON(_config = defaultConfig): Object {
@@ -34,6 +34,6 @@ export class CData extends Node {
 
   public toLml(config = defaultConfig, tabulation = ''): string {
     const data = this.data.trim();
-    return data ? `${tabulation}${CData.LML_DIRECTIVE} ${this.multilineSanitizer(data, config, tabulation)}\n` : '';
+    return data ? `${tabulation}${CData.LML_DIRECTIVE} ${this.lmlMultilineIndentation(data, config, tabulation)}\n` : '';
   }
 }

@@ -1,8 +1,11 @@
 import { Config, defaultConfig } from '../config';
+import { orderAttributes } from '../order-attributes';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Attribute } from './attribute';
 import { Node } from './node';
+
+export const TEXT_BLOCK_ELEMENTS = ['pre', 'script', 'style', 'textarea'];
 
 /**
  * Representation of an HTML element, e.g. everything that is within `<` and ends with `>` (e.g. not {@link Text Text}),
@@ -39,7 +42,8 @@ export class Element extends Node {
    * @argument config Optional output syntax configuration
    */
   public tagBody(config: Config): string {
-    const attributes = this.attrs.map((attribute) => attribute.toString(config)).join(' ');
+    const attrs = orderAttributes([].concat(this.attrs), config);
+    const attributes = attrs.map((attribute) => attribute.toString(config)).join(' ');
     return this.name + (attributes ? ' ' + attributes : '');
   }
 
@@ -54,8 +58,9 @@ export class Element extends Node {
   }
 
   public toJSON(config = defaultConfig): Object {
+    const attrs = orderAttributes([].concat(this.attrs), config);
     const attribs: {[key: string]: string} = {};
-    for (const attribute of this.attrs) {
+    for (const attribute of attrs) {
       attribs[attribute.name] = attribute.value || '';
     }
     const children = this.children.map((child) => child.toJSON(config)).filter((child) => !!child);
@@ -66,7 +71,7 @@ export class Element extends Node {
   public toLml(config = defaultConfig, tabulation = ''): string {
     let out = `${tabulation}${this.tagBody(config)}\n`;
     for (const child of this.children || []) {
-      out += child.toLml(config, tabulation + config.indentation, this.name === 'script' || this.name === 'style');
+      out += child.toLml(config, tabulation + config.indentation, TEXT_BLOCK_ELEMENTS.indexOf(this.name) > -1);
     }
     return out;
   }

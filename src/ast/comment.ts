@@ -26,7 +26,7 @@ export class Comment extends Node {
     const data = this.data.trim();
     const lf = config.minify ? '' : '\n';
     const spc = config.minify ? '' : ' ';
-    return data ? `${tabulation}<!--${spc}${this.multilineSanitizer(data, config, tabulation)}${spc}-->${lf}` : '';
+    return data ? `${tabulation}<!--${spc}${this.lmlMultilineIndentation(data, config, tabulation)}${spc}-->${lf}` : '';
   }
 
   public toJSON(_config = defaultConfig): Object {
@@ -35,6 +35,6 @@ export class Comment extends Node {
 
   public toLml(config = defaultConfig, tabulation = ''): string {
     const data = this.data.trim();
-    return data ? `${tabulation}${Comment.LML_DIRECTIVE} ${this.multilineSanitizer(data.trim(), config, tabulation)}\n` : '';
+    return data ? `${tabulation}${Comment.LML_DIRECTIVE} ${this.lmlMultilineIndentation(data, config, tabulation)}\n` : '';
   }
 }

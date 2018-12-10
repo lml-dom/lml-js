@@ -27,11 +27,10 @@ export class Text extends Node {
     if (!data) {
       return '';
     }
-    const lf = config.minify ? '' : '\n';
-    return tabulation + this.multilineSanitizer(data, config, tabulation.substr(0, tabulation.length - config.indentation.length)) + lf;
+    return data + (config.minify ? '' : '\n');
   }
 
-  public toJSON(config = defaultConfig): Object {
+  public toJSON(_config = defaultConfig): Object {
     const data = (this.data || '').trim();
     return data ? this.json({type: 'text', data}) : null;
   }
@@ -41,8 +40,8 @@ export class Text extends Node {
     if (!data) {
       return '';
     } else if (textOnly) {
-      return `${this.multilineSanitizer(data, config, tabulation.substr(0, tabulation.length - config.indentation.length), true)}\n`;
+      return `${this.lmlMultilineIndentation(data, config, tabulation.substr(0, tabulation.length - config.indentation.length), true)}\n`;
     }
-    return `${tabulation}; ${this.multilineSanitizer(data, config, tabulation)}\n`;
+    return `${tabulation}; ${this.lmlMultilineIndentation(data, config, tabulation)}\n`;
   }
 }

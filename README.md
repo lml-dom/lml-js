@@ -11,7 +11,7 @@ Light Meta Language - an HTML alternative
   - It works well with stuff like Angular event handler attributes (e.g. `(click)="x = 'nah'"`) unlike Pug/Jade
 
 ## Example
-```
+```html
 !DOCTYPE html
 html
   head
@@ -31,7 +31,7 @@ html
       ; My Site!
 ```
 Translates to
-```
+```lml
 <!DOCTYPE html>
 <html>
   <head>
@@ -72,17 +72,17 @@ Converts HTML/LML to HTML/JSON/LML on the command line
 ### Install for your project
 `npm install lml --save`
 ### Parsers produce AST and convert
-Use the `HtmlParser` and `LmlParser` to parse to ast:
+Use the `HtmlParser` or `LmlParser` to parse the DOM.
 JavaScript:
 ```javascript
 // convert HTML to LML
 const HtmlParser = require('lml').HtmlParser;
 
 const parser = new HtmlParser(filePath, htmlString);
-if (parser.ast.errors.length) {
-  console.error.apply(null, ['Parsing failed:'].concat(parser.ast.errors));
+if (parser.error) {
+  console.error.apply(null, ['Parsing failed:'].concat(parser.errors));
 } else {
-  console.log(parser.ast.toHtml());
+  console.log(parser.toHtml());
 }
 ```
 
@@ -92,9 +92,9 @@ TypeScript:
 import { LmlParser } from 'lml';
 
 const parser = new LmlParser(filePath, lmlString);
-if (parser.ast.errors.length) {
-  console.error('Parsing failed:', ...parser.ast.errors);
+if (parser.error) {
+  console.error('Parsing failed:', ...parser.errors);
 } else {
-  console.log(parser.ast.toHtml());
+  console.log(parser.toHtml());
 }
 ```

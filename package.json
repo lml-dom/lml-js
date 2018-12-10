@@ -1,7 +1,7 @@
 {
   "name": "lml",
-  "version": "0.1.2",
-  "description": "Lightweight Meta Language. A simple-yet-powerful HTML syntax alternative",
+  "version": "0.2.0",
+  "description": "Light Meta Language. A simple-yet-powerful HTML syntax alternative",
   "keywords": ["lml", "html", "alternative", "ast", "compiler", "translate", "simple", "hierarchy", "dom", "xml", "parser"],
   "main": "lib/index.js",
   "scripts": {
@@ -19,10 +19,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gvarsanyi/lml.git"
+    "url": "https://github.com/lml-dom/lml-node.git"
   },
-  "bugs": "https://github.com/gvarsanyi/lml/issues",
-  "homepage": "https://github.com/gvarsanyi/lml",
+  "bugs": "https://github.com/lml-dom/lml-node/issues",
+  "homepage": "https://lml-dom.org/",
   "dependencies": {
     "htmlparser2": "3.10.0",
     "minimist": "1.2.0"

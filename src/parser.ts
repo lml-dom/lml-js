@@ -1,12 +1,11 @@
 import { Attribute } from './ast/attribute';
 import { Element } from './ast/element';
 import { Node } from './ast/node';
-import { Config } from './config';
+import { Config, defaultConfig } from './config';
 import { ParseError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { ParseSourceFile } from './parse-source-file';
 import { ParseSourceSpan } from './parse-source-span';
-import { ParseTreeResult } from './parse-tree-result';
 
 interface SrcTagPart {
   line: number;
@@ -23,14 +22,19 @@ const N_QUOTES = 2;
  */
 export abstract class Parser {
   /**
+   * Errors while parsing
+   */
+  public readonly errors: ParseError[] = [];
+
+  /**
+   * Top level DOM elements
+   */
+  public readonly rootNodes: Node[] = [];
+
+  /**
    * Parsing source
    */
   public readonly source: ParseSourceFile;
-
-  /**
-   * AST / parse result container
-   */
-  public ast = new ParseTreeResult([], []);
 
   /**
    * Last node that was parsed
@@ -45,13 +49,39 @@ export abstract class Parser {
   /**
    * References of potential parents on each level
    */
-  protected _levels: Element[];
+  protected _levels: Element[] = [];
 
   constructor(url: string, src: string, public readonly config?: Config) {
     this.source = new ParseSourceFile(src, url);
-    this._levels = [];
-    this._levels[-1] = new Element('root', [], this.ast.rootNodes, this.parseSpan(0, 0, 0, 0));
+    this._levels[-1] = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 0));
     this.parse();
+  }
+
+  /**
+   * Returns first parsing error if any
+   */
+  public get error(): ParseError {
+    return this.errors[0];
+  }
+
+  public toHtml(config = defaultConfig): string {
+    let out = '';
+    for (const child of this.rootNodes || []) {
+      out += child.toHtml(config);
+    }
+    return out;
+  }
+
+  public toJSON(config = defaultConfig): Object {
+    return this.rootNodes.map((node) => node.toJSON(config)).filter((child) => !!child);
+  }
+
+  public toLml(config = defaultConfig): string {
+    let out = '';
+    for (const child of this.rootNodes || []) {
+      out += child.toLml(config);
+    }
+    return out;
   }
 
   /**
@@ -73,7 +103,7 @@ export abstract class Parser {
    * Add ParseError around span in a standard way
    */
   protected parseError(line: number, startCol: number, endCol: number, msg: string): void {
-    this.ast.errors.push(new ParseError(this.parseSpan(line, startCol, line, endCol), msg));
+    this.errors.push(new ParseError(this.parseSpan(line, startCol, line, endCol), msg));
   }
 
   /**

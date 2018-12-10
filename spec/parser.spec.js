@@ -37,12 +37,12 @@ const html = `
 `;
 
 describe('Parser', () => {
-  const ast1 = (new HtmlParser('test.html', html)).ast;
+  const ast1 = (new HtmlParser('test.html', html));
   const lml1 = ast1.toLml();
-  const ast2 = (new LmlParser('1.lml', lml1)).ast;
+  const ast2 = (new LmlParser('1.lml', lml1));
   const html1 = ast2.toHtml();
-  const lml2 = (new HtmlParser('1.html', html1)).ast.toLml();
-  const html2 = (new LmlParser('2.lml', lml2)).ast.toHtml();
+  const lml2 = (new HtmlParser('1.html', html1)).toLml();
+  const html2 = (new LmlParser('2.lml', lml2)).toHtml();
 
   it('works with consistent outputs', () => {
     expect(lml1).toBe(lml2, 'LML outputs');
