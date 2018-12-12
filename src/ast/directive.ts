@@ -21,15 +21,15 @@ export class Directive extends Node {
     super(sourceSpan);
   }
 
-  public toHtml(config = defaultConfig, tabulation = ''): string {
-    return `${tabulation}<!${this.data}>${config.minify ? '' : '\n'}`;
+  public toHtml(config = defaultConfig): string {
+    return `<${this.data}>\n`;
   }
 
   public toJSON(config = defaultConfig): Object {
-    return this.json({type: 'directive', name: '!' + this.data.split(' ')[0].toLowerCase(), data: '!' + this.data.trim()});
+    return this.json({type: 'directive', name: this.data.split(' ')[0].toLowerCase(), data: this.data});
   }
 
-  public toLml(_config = defaultConfig, tabulation = ''): string {
-    return `${tabulation}${Directive.LML_DIRECTIVE}${this.data}\n`;
+  public toLml(_config = defaultConfig): string {
+    return `${this.data}\n`;
   }
 }

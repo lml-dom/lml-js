@@ -1,7 +1,11 @@
 import { defaultConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
+import { Element } from './element';
 import { Node } from './node';
+
+export const CHARACTER_SAFE_ELEMENTS = ['cdata', 'pre', 'textarea'];
+export const TEXT_BLOCK_ELEMENTS = ['pre', 'script', 'style', 'textarea'];
 
 /**
  * Text node in HTML
@@ -23,25 +27,38 @@ export class Text extends Node {
   }
 
   public toHtml(config = defaultConfig, tabulation = ''): string {
-    const data = (this.data || '').trim();
-    if (!data) {
-      return '';
+    if (this.parent && CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) > -1) {
+      return this.data || '';
     }
-    return data + (config.minify ? '' : '\n');
+
+    const indent = tabulation.substr(0, tabulation.length - config.indentation.length);
+    const data = (this.data || '').trim();
+    if (data && this.parent && (this.parent.name === 'script' || this.parent.name === 'style')) {
+      return `${this.multilineIndentation(data, config, indent, true, this.parent.name === 'script')}\n`;
+    }
+    return (config.minify ? '' : tabulation) + this.multilineIndentation(data, config, indent) + (config.minify ? '' : '\n');
   }
 
   public toJSON(_config = defaultConfig): Object {
-    const data = (this.data || '').trim();
+    const data = this._sanitizedValue;
     return data ? this.json({type: 'text', data}) : null;
   }
 
-  public toLml(config = defaultConfig, tabulation = '', textOnly = false): string {
-    const data = (this.data || '').trim();
+  public toLml(config = defaultConfig, tabulation = ''): string {
+    const data = this._sanitizedValue;
     if (!data) {
       return '';
-    } else if (textOnly) {
-      return `${this.lmlMultilineIndentation(data, config, tabulation.substr(0, tabulation.length - config.indentation.length), true)}\n`;
+    } else if (this.parent && TEXT_BLOCK_ELEMENTS.indexOf(this.parent.name) > -1) {
+      const indent = tabulation.substr(0, tabulation.length - config.indentation.length);
+      return `${this.multilineIndentation(data, config, indent, true)}\n`;
     }
-    return `${tabulation}; ${this.lmlMultilineIndentation(data, config, tabulation)}\n`;
+    return `${tabulation}; ${this.multilineIndentation(data, config, tabulation)}\n`;
+  }
+
+  /**
+   * Trimmed value for text nodes where parent element doesn't require value safety (e.g. except `textarea` and `pre`)
+   */
+  private get _sanitizedValue(): string {
+    return CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) > -1 ? (this.data || '') : (this.data || '').trim();
   }
 }

@@ -1,6 +1,7 @@
 import { Attribute } from './ast/attribute';
 import { Element } from './ast/element';
 import { Node } from './ast/node';
+import { Text } from './ast/text';
 import { Config, defaultConfig } from './config';
 import { ParseError } from './parse-error';
 import { ParseLocation } from './parse-location';
@@ -85,6 +86,14 @@ export abstract class Parser {
   }
 
   /**
+   * Indicates whether parsing should stop (e.g too many errors)
+   */
+  protected get stopParse(): boolean {
+    const errorLimit = this.config.stopOnErrorCount || defaultConfig.stopOnErrorCount || 1;
+    return this.errors.length >= errorLimit;
+  }
+
+  /**
    * Add a node, set parent, mark as last, update level-related info
    */
   protected add(node: Node, level: number): void {
@@ -92,6 +101,22 @@ export abstract class Parser {
     this._lastLevel = level;
     node.parent = this._levels[level - 1];
     this._last = this._levels[level] = <Element>node;
+  }
+
+  /**
+   * Handle consecutive text nodes as one
+   */
+  protected mergeTextChildren(node: Element): void {
+    const children = node.children || [];
+    for (let i = children.length - 1; i > 0; i--) {
+      const child = children[i];
+      const previous = children[i - 1];
+      if (child instanceof Text && previous instanceof Text) {
+        previous.data += child.data;
+        previous.sourceSpan.end = child.sourceSpan.end;
+        children.splice(i, 1);
+      }
+    }
   }
 
   /**
@@ -152,7 +177,10 @@ export abstract class Parser {
       col ++;
       partCol ++;
     }
-    return parts.filter((part) => part.src && part.src !== '/').map((part) => this.partToAttribute(part));
+
+    return parts
+      .filter((part, i) => part.src && (i < parts.length - 1 || part.src !== '/'))
+      .map((part) => this.partToAttribute(part));
   }
 
   /**
@@ -162,20 +190,29 @@ export abstract class Parser {
     const srcSpan = this.parseSpan(part.line, part.col, part.line, part.col + part.src.length);
     if (part.posEq == null) {
       if (part.quotePos.length) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unexpected quote sign');
+        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unexpected quote sign.');
       }
       return new Attribute(part.src, '', srcSpan);
     } else if (part.quotePos.length) {
       if (part.quotePos.length === 1) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign');
-      } else if (part.quotePos.length > N_QUOTES) {
-        this.parseError(part.line, part.col + part.quotePos[N_QUOTES], part.col + part.quotePos[N_QUOTES] + 1, 'Unexpected quote sign');
+        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign.');
+      } if (part.quotePos.length > N_QUOTES) {
+        this.parseError(part.line, part.col + part.quotePos[N_QUOTES], part.col + part.quotePos[N_QUOTES] + 1, 'Unexpected quote sign.');
       } else if (part.quotePos.length === 1) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign');
+        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign.');
+      } else if (part.posEq !== part.quotePos[0] - 1) {
+        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Quote must be preceded by `=`.');
+      } else if (part.posEq < 1) {
+        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute name.');
       }
       const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1 + 1, part.line, part.col + part.src.length - 1);
       return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1 + 1, part.src.length - 1), srcSpan, valueSpan);
     } else {
+      if (part.posEq < 1) {
+        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute name.');
+      } else if (part.posEq === part.src.length - 1) {
+        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute value.');
+      }
       const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1, part.line, part.col + part.src.length);
       return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1, part.src.length), srcSpan, valueSpan);
     }

@@ -23,18 +23,14 @@ export class Comment extends Node {
   }
 
   public toHtml(config = defaultConfig, tabulation = ''): string {
-    const data = this.data.trim();
-    const lf = config.minify ? '' : '\n';
-    const spc = config.minify ? '' : ' ';
-    return data ? `${tabulation}<!--${spc}${this.lmlMultilineIndentation(data, config, tabulation)}${spc}-->${lf}` : '';
+    return config.minify ? '' : `${tabulation}<!-- ${this.data} -->\n`;
   }
 
   public toJSON(_config = defaultConfig): Object {
-    return this.json({type: 'comment', data: this.data.trim()});
+    return this.json({type: 'comment', data: this.data});
   }
 
   public toLml(config = defaultConfig, tabulation = ''): string {
-    const data = this.data.trim();
-    return data ? `${tabulation}${Comment.LML_DIRECTIVE} ${this.lmlMultilineIndentation(data, config, tabulation)}\n` : '';
+    return `${tabulation}${Comment.LML_DIRECTIVE} ${this.multilineIndentation(this.data, config, tabulation)}\n`;
   }
 }

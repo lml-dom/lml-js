@@ -5,8 +5,6 @@ import { ParseSourceSpan } from '../parse-source-span';
 import { Attribute } from './attribute';
 import { Node } from './node';
 
-export const TEXT_BLOCK_ELEMENTS = ['pre', 'script', 'style', 'textarea'];
-
 /**
  * Representation of an HTML element, e.g. everything that is within `<` and ends with `>` (e.g. not {@link Text Text}),
  * except {@link CData CData}, {@link Comment Comment}, and {@link Directive Directive}.
@@ -49,10 +47,14 @@ export class Element extends Node {
 
   public toHtml(config = defaultConfig, tabulation = ''): string {
     let content = '';
-    for (const child of this.children || []) {
+    for (const child of (this['children'] || [])) {
       content += child.toHtml(config, tabulation + config.indentation);
     }
+
     const lf = config.minify ? '' : '\n';
+    if (this.name === 'textarea' || this.name === 'pre') {
+      return `${tabulation}<${this.tagBody(config)}>${content}</${this.name}>${lf}`;
+    }
     content = content ? lf + content + tabulation : '';
     return `${tabulation}<${this.tagBody(config)}>${content}` + (content || !Element.isVoid(this) ? `</${this.name}>${lf}` : lf);
   }
@@ -70,8 +72,8 @@ export class Element extends Node {
 
   public toLml(config = defaultConfig, tabulation = ''): string {
     let out = `${tabulation}${this.tagBody(config)}\n`;
-    for (const child of this.children || []) {
-      out += child.toLml(config, tabulation + config.indentation, TEXT_BLOCK_ELEMENTS.indexOf(this.name) > -1);
+    for (const child of (this.children || [])) {
+      out += child.toLml(config, tabulation + config.indentation);
     }
     return out;
   }

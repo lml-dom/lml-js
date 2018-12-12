@@ -3,6 +3,9 @@ import { ParseSourceSpan } from '../parse-source-span';
 
 import { Element } from './element';
 
+const BACKTICK_RX = /`/g;
+const EVEN = 2;
+
 /**
  * HTML node base class
  * Resembles the @angular/compiler `Node` class
@@ -37,6 +40,7 @@ export abstract class Node {
    * Update will unlink it from current parent (if set), and add it to the `.children` array of the specified element
    */
   public set parent(element: Element) {
+    element = element && element.children ? element : undefined;
     if (this._parent !== element) {
       if (this._parent) {
         const pos = this._parent.children.indexOf(this);
@@ -46,7 +50,7 @@ export abstract class Node {
       }
       this._parent = element;
       if (element) {
-        this._parent.children.push(this);
+        element.children.push(this);
       }
     }
   }
@@ -57,7 +61,7 @@ export abstract class Node {
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toHtml(config?: Config, tabulation?: string, textOnly?: boolean): string;
+  public abstract toHtml(config?: Config, tabulation?: string): string;
 
   /**
    * Export node to JSON, including possible children. Meant to create an AST map.
@@ -71,7 +75,7 @@ export abstract class Node {
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toLml(config?: Config, tabulation?: string, textOnly?: boolean): string;
+  public abstract toLml(config?: Config, tabulation?: string): string;
 
   /**
    * @see {@link toLml} Same as `toLml()`
@@ -83,9 +87,14 @@ export abstract class Node {
   /**
    * Will prefix indentation for an LML multiline text (script/style/cdata/comment/textarea/pre data) block
    */
-  protected lmlMultilineIndentation(value: string, config: Config, tabulation: string, startOnNextLine = false): string {
+  protected multilineIndentation(value: string, config: Config, tabulation: string, startOnNextLine = false, backticks = false): string {
+    let backtickCount = 0;
     return value.split('\n').map((line, i) => {
-      return startOnNextLine || i ? tabulation + config.indentation + line : line;
+      line = ((startOnNextLine || i) && (!backticks || backtickCount % EVEN === 0)) ? tabulation + config.indentation + line : line;
+      if (backticks) {
+        backtickCount += (line.match(BACKTICK_RX) || []).length;
+      }
+      return line;
     }).join('\n');
   }
 }

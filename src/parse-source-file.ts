@@ -24,6 +24,23 @@ export class ParseSourceFile {
   public blockIndentation: number;
 
   /**
+   * Id the number of initial whitespaces used in every line
+   */
+  public static blockIndentation(lines: string[]): number {
+    let blockIndentation: number;
+    lines.forEach((line) => {
+      if (blockIndentation !== 0 && line.trim()) {
+        const indentation = line.match(INDENTATION_REGEX)[0].length;
+
+        if (blockIndentation == null || indentation < blockIndentation) {
+          blockIndentation = indentation;
+        }
+      }
+    });
+    return blockIndentation || 0;
+  }
+
+  /**
    * Initialize source file. Will cache line offsets.
    */
   constructor(public readonly content: string, public readonly url: string) {
@@ -31,15 +48,8 @@ export class ParseSourceFile {
 
     let offset = 0;
     this.lines = this.content.split('\n');
+    this.blockIndentation = ParseSourceFile.blockIndentation(this.lines);
     this.lines.forEach((line) => {
-      if (this.blockIndentation !== 0 && line.trim()) {
-        const indentation = line.match(INDENTATION_REGEX)[0].length;
-
-        if (this.blockIndentation == null || indentation < this.blockIndentation) {
-          this.blockIndentation = indentation;
-        }
-      }
-
       this.lineOffsets.push(offset);
       offset += line.length + 1;
     });
