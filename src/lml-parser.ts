@@ -10,9 +10,8 @@ import { ParseLocation } from './parse-location';
 import { INDENTATION_REGEX } from './parse-source-file';
 import { Parser } from './parser';
 
-const indentationRxs = {' ': /^ */, '\t': /^\t*/};
 const SPC_AND_TAB_RX = /[ \t]/g;
-const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]/;
+const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 
 /**
  * Parses LML to AST
@@ -112,12 +111,12 @@ export class LmlParser extends Parser {
       }
     };
 
-    const rx = indentationRxs[this.config.indentation[0]];
+    const indent_rx = this.config.indentation[0] === '\t' ? /^\t*/ : /^ */;
     for (i = 0; i < len; i++) {
       line = lines[i];
       trimmed = line.trim();
       if (trimmed) {
-        const lineIndent = line.substr(bi).match(rx)[0];
+        const lineIndent = line.substr(bi).match(indent_rx)[0];
         spaces = lineIndent.length;
         const level = spaces / indentationLen;
         const directive = trimmed.substr(0, 1);
