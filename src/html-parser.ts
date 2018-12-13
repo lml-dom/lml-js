@@ -43,6 +43,7 @@ export class HtmlParser extends Parser {
     this._parser = new HtmlParser2({
       oncdataend: () => { this._cdata = null; },
       oncdatastart: () => { this.onCData(); },
+      onclosetag: (name) => { this.onCloseTag(name); },
       oncomment: (data) => { this.onComment(data); },
       onerror: (error) => { this.onError(error); },
       onopentag: (name) => { this.onTag(name); },
@@ -53,7 +54,8 @@ export class HtmlParser extends Parser {
     this._levels.length = 0;
     this._parser = null;
 
-    this.postProcess(this.rootNodes);
+    const root = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 1));
+    this.postProcess([root]);
   }
 
   private currentSpan(): ParseSourceSpan {
@@ -66,12 +68,22 @@ export class HtmlParser extends Parser {
     this.add(this._cdata = new CData(this.currentSpan()), this._parser['_stack'].length);
   }
 
+  private onCloseTag(name: string): void {
+    const span = this.currentSpan();
+    const node = this._levels[this._parser['_stack'].length];
+    if (node && node.sourceSpan.start.offset !== span.start.offset) {
+      node.closeTagSpan = span;
+    }
+  }
+
   private onComment(text: string): void {
     this.add(new Comment(text.trim(), this.currentSpan()), this._parser['_stack'].length);
   }
 
   private onDirective(_name: string, data: string): void {
-    this.add(new Directive(data.trim(), this.currentSpan()), this._parser['_stack'].length);
+    const span = this.currentSpan();
+    span.end = new ParseLocation(this.source, span.start.offset + data.length + 1 + 1);
+    this.add(new Directive(data.trim(), span), this._parser['_stack'].length);
   }
 
   private onError(error: Error): void {

@@ -74,7 +74,7 @@ export abstract class Parser {
   }
 
   public toJSON(config = defaultConfig): Object {
-    return this.rootNodes.map((node) => node.toJSON(config)).filter((child) => !!child);
+    return this.rootNodes.map((node) => node.toJSON(config));
   }
 
   public toLml(config = defaultConfig): string {
@@ -97,10 +97,12 @@ export abstract class Parser {
    * Add a node, set parent, mark as last, update level-related info
    */
   protected add(node: Node, level: number): void {
-    this._levels.length = level;
-    this._lastLevel = level;
-    node.parent = this._levels[level - 1];
-    this._last = this._levels[level] = <Element>node;
+    if (node) {
+      this._levels.length = level;
+      this._lastLevel = level;
+      node.parent = this._levels[level - 1];
+      this._last = this._levels[level] = <Element>node;
+    }
   }
 
   /**

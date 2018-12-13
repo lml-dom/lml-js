@@ -41,7 +41,7 @@ export class Text extends Node {
 
   public toJSON(_config = defaultConfig): Object {
     const data = this._sanitizedValue;
-    return data ? this.json({type: 'text', data}) : null;
+    return this.json({type: 'text', data});
   }
 
   public toLml(config = defaultConfig, tabulation = ''): string {

@@ -1,13 +1,24 @@
 {
   "name": "lml",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Light Meta Language. A simple-yet-powerful HTML syntax alternative",
-  "keywords": ["lml", "html", "alternative", "ast", "compiler", "translate", "simple", "hierarchy", "dom", "xml", "parser"],
+  "keywords": [
+    "lml",
+    "html",
+    "alternative",
+    "ast",
+    "compiler",
+    "translate",
+    "simple",
+    "hierarchy",
+    "dom",
+    "xml",
+    "parser"
+  ],
   "main": "lib/index.js",
   "scripts": {
-    "clean": "rm -rf dist/ lib/",
-    "compile": "npm run lint && npm run clean && npm run compile-dist && npm run compile-lib",
-    "compile-dist": "tsc --target es5 --module amd --outFile dist/parser.js src/lml-parser.ts src/html-parser.ts",
+    "clean": "rm -rf lib/",
+    "compile": "npm run lint && npm run clean && npm run compile-lib",
     "compile-lib": "tsc && sed -i \"1s/.*/\\#\\!\\/usr\\/bin\\/env\\ node/\" lib/cli.js",
     "lint": "tslint --project tsconfig.json",
     "test": "npm run compile && jasmine \"spec/**/*.spec.js\""
@@ -30,12 +41,11 @@
   "devDependencies": {
     "@types/htmlparser2": "3.7.31",
     "@types/minimist": "1.2.0",
-    "@types/node": "10.12.9",
+    "@types/node": "10.12.14",
     "browserify": "16.2.3",
     "jasmine": "3.3.1",
-    "ts-node": "7.0.1",
     "tslint": "5.11.0",
     "typedoc": "0.13.0",
-    "typescript": "3.2.1"
+    "typescript": "3.2.2"
   }
 }

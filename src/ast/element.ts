@@ -19,6 +19,11 @@ export class Element extends Node {
   public static voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr'];
 
   /**
+   * Closing tag coordinates (when from HTML)
+   */
+  public closeTagSpan?: ParseSourceSpan;
+
+  /**
    * Identifies void tags - e.g. everything that is not an instance of Element AND not on the list of void tags
    */
   public static isVoid(node: Node): boolean {
