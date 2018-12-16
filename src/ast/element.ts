@@ -4,6 +4,7 @@ import { ParseSourceSpan } from '../parse-source-span';
 
 import { Attribute } from './attribute';
 import { Node } from './node';
+import { TEXT_BLOCK_ELEMENTS, Text } from './text';
 
 /**
  * Representation of an HTML element, e.g. everything that is within `<` and ends with `>` (e.g. not {@link Text Text}),
@@ -44,10 +45,18 @@ export class Element extends Node {
    * Tag body string for HTML or LML
    * @argument config Optional output syntax configuration
    */
-  public tagBody(config: Config): string {
-    const attrs = orderAttributes([].concat(this.attrs), config);
-    const attributes = attrs.map((attribute) => attribute.toString(config)).join(' ');
-    return this.name + (attributes ? ' ' + attributes : '');
+  public tagBody(config: Config, tabulation: string | false, type: 'html' | 'lml'): string {
+    const lines: string[] = [`${tabulation || ''}${type === 'html' ? '<' : ''}${this.name}`];
+    for (const attribute of orderAttributes([].concat(this.attrs), config)) {
+      const attr = attribute.toString(config);
+      const lineNum = lines.length - 1;
+      if (tabulation !== false && lines[lineNum].length + 1 + attr.length + (type === 'html' ? 1 : 0) > config.lineWrap) {
+        lines.push(`${tabulation + config.indentation}${type === 'lml' ? '\\ ' : ''}${attr}`);
+      } else {
+        lines[lineNum] += ` ${attr}`;
+      }
+    }
+    return lines.join('\n') + (type === 'html' ? '>' : '');
   }
 
   public toHtml(config = defaultConfig, tabulation = ''): string {
@@ -57,11 +66,23 @@ export class Element extends Node {
     }
 
     const lf = config.minify ? '' : '\n';
-    if (this.name === 'textarea' || this.name === 'pre') {
-      return `${tabulation}<${this.tagBody(config)}>${content}</${this.name}>${lf}`;
+    if (this.name === 'textarea') {
+      return `${tabulation}${this.tagBody(config, false, 'html')}${content}</${this.name}>${lf}`;
     }
-    content = content ? lf + content + tabulation : '';
-    return `${tabulation}<${this.tagBody(config)}>${content}` + (content || !Element.isVoid(this) ? `</${this.name}>${lf}` : lf);
+    const tag = this.tagBody(config, tabulation, 'html');
+    const closingTag = content || !Element.isVoid(this) ? `</${this.name}>` : '';
+    if (content) {
+      const trimmed = content.substring((tabulation + config.indentation).length, content.length - 1);
+      if (this.children.length > 1 || (this.children.length === 1 && this.children[0]['children'] && this.children[0]['children'].length) ||
+        (tag + content + closingTag).length > config.lineWrap ||
+        content.substr(0, content.length - 1).indexOf('\n') > -1
+      ) {
+        content = lf + content + tabulation;
+      } else {
+        content = trimmed;
+      }
+    }
+    return `${tag}${content}${closingTag}${lf}`;
   }
 
   public toJSON(config = defaultConfig): Object {
@@ -76,10 +97,22 @@ export class Element extends Node {
   }
 
   public toLml(config = defaultConfig, tabulation = ''): string {
-    let out = `${tabulation}${this.tagBody(config)}\n`;
-    for (const child of (this.children || [])) {
-      out += child.toLml(config, tabulation + config.indentation);
-    }
+    const indentChild = tabulation + config.indentation;
+    let out = this.tagBody(config, tabulation, 'lml') + '\n';
+    (this.children || []).forEach((child, i) => {
+      const content = child.toLml(config, indentChild);
+      if (!i && child instanceof Text && TEXT_BLOCK_ELEMENTS.indexOf(this.name) === -1) {
+        let line = out.substr(0, out.length - 1);
+        if (line.indexOf('\n') === -1 && content.substr(0, content.length - 1).indexOf('\n') === -1) {
+          line = `${line} ${content.substr(indentChild.length)}`;
+          if (line.split('\n')[0].length <= config.lineWrap) {
+            out = line;
+            return;
+          }
+        }
+      }
+      out += content;
+    });
     return out;
   }
 }

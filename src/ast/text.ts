@@ -1,11 +1,10 @@
 import { defaultConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
-import { Element } from './element';
 import { Node } from './node';
 
-export const CHARACTER_SAFE_ELEMENTS = ['cdata', 'pre', 'textarea'];
-export const TEXT_BLOCK_ELEMENTS = ['pre', 'script', 'style', 'textarea'];
+export const CHARACTER_SAFE_ELEMENTS = ['cdata', 'textarea'];
+export const TEXT_BLOCK_ELEMENTS = ['script', 'style', 'textarea'];
 
 /**
  * Text node in HTML
@@ -40,12 +39,11 @@ export class Text extends Node {
   }
 
   public toJSON(_config = defaultConfig): Object {
-    const data = this._sanitizedValue;
-    return this.json({type: 'text', data});
+    return this.json({type: 'text', data: this.lineWrap ? (this.data || '').trim() : (this.data || '')});
   }
 
   public toLml(config = defaultConfig, tabulation = ''): string {
-    const data = this._sanitizedValue;
+    const data = this.lineWrap ? (this.data || '').trim() : (this.data || '');
     if (!data) {
       return '';
     } else if (this.parent && TEXT_BLOCK_ELEMENTS.indexOf(this.parent.name) > -1) {
@@ -56,9 +54,9 @@ export class Text extends Node {
   }
 
   /**
-   * Trimmed value for text nodes where parent element doesn't require value safety (e.g. except `textarea` and `pre`)
+   * Determine if text content can be wrapped (e.g. no need for value safety)
    */
-  private get _sanitizedValue(): string {
-    return CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) > -1 ? (this.data || '') : (this.data || '').trim();
+  protected get lineWrap(): boolean {
+    return CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) === -1 && TEXT_BLOCK_ELEMENTS.indexOf(this.parent.name) === -1;
   }
 }

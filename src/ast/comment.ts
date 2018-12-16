@@ -23,7 +23,7 @@ export class Comment extends Node {
   }
 
   public toHtml(config = defaultConfig, tabulation = ''): string {
-    return config.minify ? '' : `${tabulation}<!-- ${this.data} -->\n`;
+    return config.minify ? '' : `${tabulation}<!-- ${this.multilineIndentation(this.data, config, tabulation)} -->\n`;
   }
 
   public toJSON(_config = defaultConfig): Object {
@@ -32,5 +32,12 @@ export class Comment extends Node {
 
   public toLml(config = defaultConfig, tabulation = ''): string {
     return `${tabulation}${Comment.LML_DIRECTIVE} ${this.multilineIndentation(this.data, config, tabulation)}\n`;
+  }
+
+  /**
+   * Comments are not value safe
+   */
+  protected get lineWrap(): boolean {
+    return true;
   }
 }

@@ -77,7 +77,7 @@ export class HtmlParser extends Parser {
   }
 
   private onComment(text: string): void {
-    this.add(new Comment(text.trim(), this.currentSpan()), this._parser['_stack'].length);
+    this.add(new Comment(text.split('\n').map((l) => l.trim()).join('\n').trim(), this.currentSpan()), this._parser['_stack'].length);
   }
 
   private onDirective(_name: string, data: string): void {
@@ -93,7 +93,8 @@ export class HtmlParser extends Parser {
 
   private onTag(_name: string): void {
     const span = this.currentSpan();
-    const attrs = this.parseTag(this.source.content.substring(span.start.offset + 1, span.end.offset - 1), span.start.line, span.start.col);
+    const str = this.source.content.substring(span.start.offset + 1, span.end.offset - 1);
+    const {attrs} = this.parseTag(str, span.start.line, span.start.col);
     const node = new Element(attrs.shift().name, orderAttributes(attrs, this.config), [], span);
     this.add(node, this._parser['_stack'].length - (Element.isVoid(node) ? 0 : 1));
   }

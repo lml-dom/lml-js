@@ -53,7 +53,13 @@ export abstract class Parser {
   protected _levels: Element[] = [];
 
   constructor(url: string, src: string, public readonly config?: Config) {
-    this.source = new ParseSourceFile(src, url);
+    url = typeof url === 'string' && url || '';
+    if (typeof src !== 'string') {
+      this.source = new ParseSourceFile('', url);
+      this.parseError(0, 0, 0, 'Missing or invalid source');
+    } else {
+      this.source = new ParseSourceFile(src, url);
+    }
     this._levels[-1] = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 0));
     this.parse();
   }
@@ -146,11 +152,12 @@ export abstract class Parser {
    * Parse tag strings to separate attributes, deal with quotes etc
    * Same for HTML and LML.
    */
-  protected parseTag(str: string, line: number, col: number): Attribute[] {
+  protected parseTag(str: string, line: number, col: number, isLml?: boolean): {text?: Text; attrs: Attribute[]} {
     const len = str.length;
     const parts: SrcTagPart[] = [{src: '', line, col, quotePos: []}];
     let quote = '';
     let partCol = 0;
+    let text: Text;
     for (let i = 0; i < len; i++) {
       const c = str[i];
       const part = parts[parts.length - 1];
@@ -174,15 +181,19 @@ export abstract class Parser {
         parts.push({src: '', line, col, quotePos: []});
         partCol = 0;
         continue;
+      } else if (isLml && c === ';') {
+        text = new Text(str.substr(i + 1), this.parseSpan(line, col, line, col + str.length - i));
+        break;
       }
       part.src += c;
       col ++;
       partCol ++;
     }
 
-    return parts
-      .filter((part, i) => part.src && (i < parts.length - 1 || part.src !== '/'))
-      .map((part) => this.partToAttribute(part));
+    return {
+      attrs: parts.filter((part, i) => part.src && (i < parts.length - 1 || part.src !== '/')).map((part) => this.partToAttribute(part)),
+      text
+    };
   }
 
   /**

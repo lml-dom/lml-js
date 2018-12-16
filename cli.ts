@@ -2,13 +2,14 @@
  * LML-related CLI tool
  * Converts from HTML/LML to HTML/JSON/LML
  * Usage:
- * lml [options] source.html
+ * lml path/to/source-file.ext [options]
  * Options:
  *   --from=html|lml
  *   --to=html|lml|json
- *   --minify
- *   --order-attributes[=angular|natural]
  *   --indentation=INDENT_SPEC
+ *   --line-wrap=N (defaults to 120)
+ *   --minify
+ *   --no-order-attributes
  *   --out=outfile
  * Note:
  *   --indentation allows for spaces or tab. Defaults to 2 spaces ("  "). You may use "s" or "t" to keep your CLI argument sane
@@ -18,6 +19,7 @@
 import { readFile, writeFile } from 'fs';
 import * as minimist from 'minimist';
 
+import { defaultConfig } from './src/config';
 import { HtmlParser } from './src/html-parser';
 import { LmlParser } from './src/lml-parser';
 import { ParseError } from './src/parse-error';
@@ -93,9 +95,8 @@ if (args.minify) {
   args.indentation = '';
 }
 
-if (args['order-attributes'] && [true, 'angular', 'natural'].indexOf(args['order-attributes']) === -1) {
-  error('unknown order-attributes value: ' + args['order-attributes']);
-}
+// tslint:disable-next-line:no-magic-numbers
+args['line-wrap'] = args['line-wrap'] ? Math.min(40, +args['line-wrap']) : defaultConfig.lineWrap;
 
 readFile(url, 'utf8', (readErr, src) => {
   error(readErr);
@@ -106,9 +107,11 @@ readFile(url, 'utf8', (readErr, src) => {
   }
 
   const out = parser[convertMethods[args.to]]({
+    ...defaultConfig,
     indentation: args.indentation,
+    lineWrap: args['line-wrap'],
     minify: !!args.minify,
-    orderAttributes: args['order-attributes']
+    orderAttributes: args['no-order-attributes'] ? false : 'angular'
   });
 
   if (args.out) {

@@ -72,8 +72,8 @@ export class LmlParser extends Parser {
     };
 
     const parseElement = (): void => {
-      const attrs = this.parseTag(trimmed, i, spaces);
-      node = new Element(attrs.shift().name, attrs, [], this.parseSpan(i, bi + spaces, i, bi + spaces + trimmed.length));
+      let parsed = this.parseTag(trimmed, i, spaces, true);
+      node = new Element(parsed.attrs.shift().name, parsed.attrs, [], this.parseSpan(i, bi + spaces, i, bi + spaces + trimmed.length));
       if (!(<Element>node).name.match(TAGNAME_RX)) {
         this.parseError(i, bi + spaces, bi + spaces + (<Element>node).name.length, 'Invalid tag name.');
       }
@@ -86,10 +86,15 @@ export class LmlParser extends Parser {
             this.parseError(i, pos, pos + 1, `Multiline character (\\) should be indented by 1 level compared to parent.`);
           }
           node.sourceSpan.end = new ParseLocation(this.source, null, i, bi + spaces + trimmed.length);
-          (<Element>node).attrs.push(...this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1));
+          parsed = this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1, true);
+          (<Element>node).attrs.push(...parsed.attrs);
         }
       }
       orderAttributes((<Element>node).attrs, this.config);
+
+      if (parsed.text) {
+        parsed.text.parent = <Element>node;
+      }
 
       // script or style block contents
       if (TEXT_BLOCK_ELEMENTS.indexOf((<Element>node).name) > -1) {
@@ -105,8 +110,7 @@ export class LmlParser extends Parser {
           content = content.trim();
         }
         if (content) {
-          const text = new Text(content, this.parseSpan(startLine, 0, i, lines[i].length));
-          text.parent = <Element>node;
+          (new Text(content, this.parseSpan(startLine, 0, i, lines[i].length))).parent = <Element>node;
         }
       }
     };

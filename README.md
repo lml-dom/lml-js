@@ -3,35 +3,31 @@ Light Meta Language - an HTML alternative
 
 ## Concept
 - Indentation-based hierarchy - obvious hierarchy
-- Enforced one-statement-per-line
-- No `<`, `>` character and closing tag
+- Enforced one-statement-per-line with reasonable multiline attributes option
+- No `<`, `>` character, and no closing tag
 - Simple directives for text (`;`), comment (`#`), cdata (`$`)
 - No templating trickery - as static as HTML
 - Maintained attribute string compatibility with HTML
   - It works well with stuff like Angular event handler attributes (e.g. `(click)="x = 'nah'"`) unlike Pug/Jade
 
 ## Example
-```html
+```lml
 !DOCTYPE html
 html
   head
-    title
-      ; My Title
+    title ; My Title
     script type="text/javascript" src="ext.js"
     script type="text/javascript"
       alert('Hello');
     style
-      body {
-        background-color: #ddd;
-        color: #333;
-      }
+      body { color: #333; }
   body
     # A comment
     div id="wrapper"
       ; My Site!
 ```
 Translates to
-```lml
+```html
 <!DOCTYPE html>
 <html>
   <head>
@@ -43,10 +39,7 @@ Translates to
       alert('Hello');
     </script>
     <style>
-      body {
-        background-color: #ddd;
-        color: #333;
-      }
+      body { color: #333; }
     </style>
   </head>
   <body>
