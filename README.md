@@ -75,7 +75,7 @@ const parser = new HtmlParser(filePath, htmlString);
 if (parser.error) {
   console.error.apply(null, ['Parsing failed:'].concat(parser.errors));
 } else {
-  console.log(parser.toHtml());
+  console.log(parser.toHTML());
 }
 ```
 
@@ -88,6 +88,6 @@ const parser = new LmlParser(filePath, lmlString);
 if (parser.error) {
   console.error('Parsing failed:', ...parser.errors);
 } else {
-  console.log(parser.toHtml());
+  console.log(parser.toHTML());
 }
 ```

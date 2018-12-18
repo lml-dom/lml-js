@@ -1,6 +1,6 @@
 {
   "name": "lml",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Light Meta Language. A simple-yet-powerful HTML syntax alternative",
   "keywords": [
     "lml",
@@ -18,10 +18,10 @@
   "main": "lib/index.js",
   "scripts": {
     "clean": "rm -rf lib/",
-    "compile": "npm run lint && npm run clean && npm run compile-lib",
-    "compile-lib": "tsc && sed -i \"1s/.*/\\#\\!\\/usr\\/bin\\/env\\ node/\" lib/cli.js",
+    "build": "npm run clean && npm run lint && npm run test && npm run compile",
+    "compile": "tsc && sed -i \"1s/.*/\\#\\!\\/usr\\/bin\\/env\\ node/\" lib/cli.js",
     "lint": "tslint --project tsconfig.json",
-    "test": "npm run compile && jasmine \"spec/**/*.spec.js\""
+    "test": "npm run lint && nyc -r lcov -e .ts -x \"*.spec.ts\" jasmine-ts"
   },
   "bin": {
     "lml": "lib/cli.js"
@@ -40,10 +40,14 @@
   },
   "devDependencies": {
     "@types/htmlparser2": "3.7.31",
+    "@types/jasmine": "3.3.2",
     "@types/minimist": "1.2.0",
-    "@types/node": "10.12.14",
+    "@types/node": "10.12.15",
     "browserify": "16.2.3",
     "jasmine": "3.3.1",
+    "jasmine-ts": "0.3.0",
+    "nyc": "13.1.0",
+    "ts-node": "7.0.1",
     "tslint": "5.11.0",
     "typedoc": "0.13.0",
     "typescript": "3.2.2"

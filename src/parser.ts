@@ -3,7 +3,8 @@ import { Element } from './ast/element';
 import { Node } from './ast/node';
 import { Text } from './ast/text';
 import { Config, defaultConfig } from './config';
-import { ParseError } from './parse-error';
+import { InvalidSourceError, MissingAttributeNameError, MissingAttributeValueError, ParseError, UnclosedQuoteSignError,
+  UnexpectedQuoteSignError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { ParseSourceFile } from './parse-source-file';
 import { ParseSourceSpan } from './parse-source-span';
@@ -22,6 +23,11 @@ const N_QUOTES = 2;
  * Parsing base class. Serves HtmlParser and LmlParser
  */
 export abstract class Parser {
+  /**
+   * Alias to `.toLML()`
+   */
+  public toString = this.toLML;
+
   /**
    * Errors while parsing
    */
@@ -56,7 +62,7 @@ export abstract class Parser {
     url = typeof url === 'string' && url || '';
     if (typeof src !== 'string') {
       this.source = new ParseSourceFile('', url);
-      this.parseError(0, 0, 0, 'Missing or invalid source');
+      this.errors.push(new InvalidSourceError(this.parseSpan(0, 0)));
     } else {
       this.source = new ParseSourceFile(src, url);
     }
@@ -71,10 +77,10 @@ export abstract class Parser {
     return this.errors[0];
   }
 
-  public toHtml(config = defaultConfig): string {
+  public toHTML(config = defaultConfig): string {
     let out = '';
     for (const child of this.rootNodes || []) {
-      out += child.toHtml(config);
+      out += child.toHTML(config);
     }
     return out;
   }
@@ -83,10 +89,10 @@ export abstract class Parser {
     return this.rootNodes.map((node) => node.toJSON(config));
   }
 
-  public toLml(config = defaultConfig): string {
+  public toLML(config = defaultConfig): string {
     let out = '';
     for (const child of this.rootNodes || []) {
-      out += child.toLml(config);
+      out += child.toLML(config);
     }
     return out;
   }
@@ -133,16 +139,9 @@ export abstract class Parser {
   protected abstract parse(): void;
 
   /**
-   * Add ParseError around span in a standard way
-   */
-  protected parseError(line: number, startCol: number, endCol: number, msg: string): void {
-    this.errors.push(new ParseError(this.parseSpan(line, startCol, line, endCol), msg));
-  }
-
-  /**
    * Obtain ParseSourceSpan from start line/col and end line/col
    */
-  protected parseSpan(startLine: number, startCol: number, endLine: number, endCol: number): ParseSourceSpan {
+  protected parseSpan(startLine: number, startCol: number, endLine = startLine, endCol = startCol): ParseSourceSpan {
     const start = new ParseLocation(this.source, null, startLine, startCol);
     const end = new ParseLocation(this.source, null, endLine, endCol);
     return new ParseSourceSpan(start, end);
@@ -203,28 +202,27 @@ export abstract class Parser {
     const srcSpan = this.parseSpan(part.line, part.col, part.line, part.col + part.src.length);
     if (part.posEq == null) {
       if (part.quotePos.length) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unexpected quote sign.');
+        const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
+        this.errors.push(new UnexpectedQuoteSignError(errSpan));
       }
       return new Attribute(part.src, '', srcSpan);
     } else if (part.quotePos.length) {
-      if (part.quotePos.length === 1) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign.');
+      if (part.quotePos.length === 1 || part.posEq !== part.quotePos[0] - 1) {
+        const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
+        this.errors.push(new UnclosedQuoteSignError(errSpan));
       } if (part.quotePos.length > N_QUOTES) {
-        this.parseError(part.line, part.col + part.quotePos[N_QUOTES], part.col + part.quotePos[N_QUOTES] + 1, 'Unexpected quote sign.');
-      } else if (part.quotePos.length === 1) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Unclosed quote sign.');
-      } else if (part.posEq !== part.quotePos[0] - 1) {
-        this.parseError(part.line, part.col + part.quotePos[0], part.col + part.quotePos[0] + 1, 'Quote must be preceded by `=`.');
+        const errSpan = this.parseSpan(part.line, part.col + part.quotePos[N_QUOTES], null, part.col + part.quotePos[N_QUOTES] + 1);
+        this.errors.push(new UnexpectedQuoteSignError(errSpan));
       } else if (part.posEq < 1) {
-        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute name.');
+        this.errors.push(new MissingAttributeNameError(this.parseSpan(part.line, part.col, null, part.col + 1)));
       }
       const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1 + 1, part.line, part.col + part.src.length - 1);
       return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1 + 1, part.src.length - 1), srcSpan, valueSpan);
     } else {
       if (part.posEq < 1) {
-        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute name.');
+        this.errors.push(new MissingAttributeNameError(this.parseSpan(part.line, part.col, null, part.col + 1)));
       } else if (part.posEq === part.src.length - 1) {
-        this.parseError(part.line, part.col, part.col + 1, 'Missing attribute value.');
+        this.errors.push(new MissingAttributeValueError(this.parseSpan(part.line, part.col, null, part.col + 1)));
       }
       const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1, part.line, part.col + part.src.length);
       return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1, part.src.length), srcSpan, valueSpan);

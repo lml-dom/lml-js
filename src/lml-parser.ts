@@ -6,11 +6,13 @@ import { Node } from './ast/node';
 import { CHARACTER_SAFE_ELEMENTS, TEXT_BLOCK_ELEMENTS, Text } from './ast/text';
 import { defaultConfig } from './config';
 import { orderAttributes } from './order-attributes';
+import { InconsistentIndentationError, InvalidMultilineError, InvalidParentError, InvalidTagNameError, MisplacedDirectiveError,
+  MultilineAttributeIndentationError, TooMuchIndentationError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { INDENTATION_REGEX } from './parse-source-file';
 import { Parser } from './parser';
 
-const SPC_AND_TAB_RX = /[ \t]/g;
+const SPC_AND_TAB_RX = /^[ \t]*/g;
 const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 
 /**
@@ -48,10 +50,6 @@ export class LmlParser extends Parser {
           if (indentation == null) {
             indentation = lineIndent;
             indentationLen = lineIndent.length;
-            if (indentation.replace(SPC_AND_TAB_RX, '').length || (indentation.length > 1 && indentation.indexOf('\t') > -1)) {
-              this.parseError(i, bi, bi + lineIndent.length, `Indentation character mix-up.`);
-              return;
-            }
             break;
           }
         }
@@ -63,7 +61,7 @@ export class LmlParser extends Parser {
     }
 
     const directiveMultilineBlock = (): void => {
-      const expectedTabulation = lines[i].substr(bi, spaces) + this.config.indentation;
+      const expectedTabulation = lines[i].substr(bi, spaces) + indentation;
       while (i < len - 1 && (!lines[i + 1].trim() || lines[i + 1].substr(bi, spaces + indentationLen) === expectedTabulation)) {
         i++;
         node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
@@ -75,7 +73,7 @@ export class LmlParser extends Parser {
       let parsed = this.parseTag(trimmed, i, spaces, true);
       node = new Element(parsed.attrs.shift().name, parsed.attrs, [], this.parseSpan(i, bi + spaces, i, bi + spaces + trimmed.length));
       if (!(<Element>node).name.match(TAGNAME_RX)) {
-        this.parseError(i, bi + spaces, bi + spaces + (<Element>node).name.length, 'Invalid tag name.');
+        this.errors.push(new InvalidTagNameError(this.parseSpan(i, bi + spaces, i, bi + spaces + (<Element>node).name.length)));
       }
       // multiline attributes
       while (i < len - 1 && (!(trimmed = lines[i + 1].trim()) || trimmed.substr(0, 1) === '\\')) {
@@ -83,7 +81,7 @@ export class LmlParser extends Parser {
         if (trimmed) {
           if (lines[i].substr(bi, spaces + indentationLen + 1) !== `${lines[i - 1].substr(bi, spaces)}${indentation}\\`) {
             const pos = lines[i].indexOf('\\');
-            this.parseError(i, pos, pos + 1, `Multiline character (\\) should be indented by 1 level compared to parent.`);
+            this.errors.push(new MultilineAttributeIndentationError(this.parseSpan(i, pos, i, pos + 1)));
           }
           node.sourceSpan.end = new ParseLocation(this.source, null, i, bi + spaces + trimmed.length);
           parsed = this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1, true);
@@ -115,46 +113,47 @@ export class LmlParser extends Parser {
       }
     };
 
-    const indent_rx = this.config.indentation[0] === '\t' ? /^\t*/ : /^ */;
+    const indent_rx = indentation[0] === '\t' ? /^\t*/ : /^ */;
     for (i = 0; i < len; i++) {
       line = lines[i];
       trimmed = line.trim();
       if (trimmed) {
-        const lineIndent = line.substr(bi).match(indent_rx)[0];
+        const lineIndent = line.substr(bi).match(SPC_AND_TAB_RX)[0];
         spaces = lineIndent.length;
         const level = spaces / indentationLen;
         const directive = trimmed.substr(0, 1);
-        if (lineIndent.split(indentation).join('')) {
-          this.parseError(i, bi, bi + spaces, `Indentation error.`);
-          return;
-        } else if (!this._levels[level - 1]) {
-          this.parseError(i, this._levels.length * indentationLen, spaces, `Too much indentation.`);
+        if (!this._levels[level - 1]) {
+          this.errors.push(new TooMuchIndentationError(this.parseSpan(i, this._levels.length * indentationLen, i, spaces)));
         } else if (!this._levels[level - 1]['children']) {
-          const parentName = this._levels[level - 1]['name'];
-          this.parseError(i, bi + spaces, line.length, `Parent element${parentName ? ` (${parentName})` : ''} can not have children.`);
+          this.errors.push(new InvalidParentError(this.parseSpan(i, bi + spaces, i, line.length)));
         } else if (directive === '\\') {
-          this.parseError(i, bi + spaces, bi + spaces + 1, `Backslash-multiline is only allowed for HTML elements.`);
-        } else if (directive === CData.LML_DIRECTIVE) {
-          node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces + 1, i, line.length));
-          const cdata = new CData(this.parseSpan(i, bi + spaces, i, line.length), <Text>node);
-          directiveMultilineBlock();
-          node = cdata;
-        } else if (directive === Comment.LML_DIRECTIVE) {
-          node = new Comment(trimmed.substr(1).trim(), this.parseSpan(i, bi + spaces, i, line.length));
-          directiveMultilineBlock();
-        } else if (directive === Directive.LML_DIRECTIVE) {
-          if (bi || spaces) {
-            this.parseError(i, 0, bi + spaces, `Directive can only be top level`);
+          this.errors.push(new InvalidMultilineError(this.parseSpan(i, bi + spaces, i, bi + spaces + 1)));
+        } else {
+          if (lineIndent.replace(indent_rx, '').length) {
+            this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + lineIndent.length)));
           }
-          if (i) {
-            this.parseError(i, 0, line.length, `Directive can only be on the first line`);
+
+          if (directive === CData.LML_DIRECTIVE) {
+            node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces + 1, i, line.length));
+            const cdata = new CData(this.parseSpan(i, bi + spaces, i, line.length), <Text>node);
+            directiveMultilineBlock();
+            node = cdata;
+          } else if (directive === Comment.LML_DIRECTIVE) {
+            node = new Comment(trimmed.substr(1).trim(), this.parseSpan(i, bi + spaces, i, line.length));
+            directiveMultilineBlock();
+          } else if (directive === Directive.LML_DIRECTIVE) {
+            if (bi || spaces) {
+              this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, bi + spaces)));
+            } else if (this.rootNodes.length) {
+              this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, line.length)));
+            }
+            node = new Directive(trimmed.trim(), this.parseSpan(i, 0, i, line.length));
+          } else if (directive === Text.LML_DIRECTIVE) {
+            node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces, i, line.length));
+            directiveMultilineBlock();
+          } else { // Element
+            parseElement();
           }
-          node = new Directive(trimmed.trim(), this.parseSpan(i, 0, i, line.length));
-        } else if (directive === Text.LML_DIRECTIVE) {
-          node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces, i, line.length));
-          directiveMultilineBlock();
-        } else { // Element
-          parseElement();
         }
 
         if (this.stopParse) {

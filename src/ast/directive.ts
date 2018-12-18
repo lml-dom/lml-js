@@ -21,7 +21,7 @@ export class Directive extends Node {
     super(sourceSpan);
   }
 
-  public toHtml(config = defaultConfig): string {
+  public toHTML(config = defaultConfig): string {
     return `<${this.data}>\n`;
   }
 
@@ -29,7 +29,7 @@ export class Directive extends Node {
     return this.json({type: 'directive', name: this.data.split(' ')[0].toLowerCase(), data: this.data});
   }
 
-  public toLml(_config = defaultConfig): string {
+  public toLML(_config = defaultConfig): string {
     return `${this.data}\n`;
   }
 }

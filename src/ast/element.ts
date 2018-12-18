@@ -59,10 +59,10 @@ export class Element extends Node {
     return lines.join('\n') + (type === 'html' ? '>' : '');
   }
 
-  public toHtml(config = defaultConfig, tabulation = ''): string {
+  public toHTML(config = defaultConfig, tabulation = ''): string {
     let content = '';
     for (const child of (this['children'] || [])) {
-      content += child.toHtml(config, tabulation + config.indentation);
+      content += child.toHTML(config, tabulation + config.indentation);
     }
 
     const lf = config.minify ? '' : '\n';
@@ -96,11 +96,11 @@ export class Element extends Node {
     return this.json({type, name: this.name, attribs, children});
   }
 
-  public toLml(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultConfig, tabulation = ''): string {
     const indentChild = tabulation + config.indentation;
     let out = this.tagBody(config, tabulation, 'lml') + '\n';
     (this.children || []).forEach((child, i) => {
-      const content = child.toLml(config, indentChild);
+      const content = child.toLML(config, indentChild);
       if (!i && child instanceof Text && TEXT_BLOCK_ELEMENTS.indexOf(this.name) === -1) {
         let line = out.substr(0, out.length - 1);
         if (line.indexOf('\n') === -1 && content.substr(0, content.length - 1).indexOf('\n') === -1) {

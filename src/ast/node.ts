@@ -71,7 +71,7 @@ export abstract class Node {
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toHtml(config?: Config, tabulation?: string): string;
+  public abstract toHTML(config?: Config, tabulation?: string): string;
 
   /**
    * Export node to JSON, including possible children. Meant to create an AST map.
@@ -85,13 +85,13 @@ export abstract class Node {
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toLml(config?: Config, tabulation?: string): string;
+  public abstract toLML(config?: Config, tabulation?: string): string;
 
   /**
-   * @see {@link toLml} Same as `toLml()`
+   * @see {@link toLML} Same as `toLML()`
    */
   public toString(config?: Config, tabulation?: string): string {
-    return this.toLml(config, tabulation);
+    return this.toLML(config, tabulation);
   }
 
   /**

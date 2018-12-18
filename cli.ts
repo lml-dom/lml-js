@@ -37,7 +37,7 @@ function error(...errors: (string | Error | ParseError)[]): void {
   }
 }
 
-const convertMethods = {html: 'toHtml', json: 'toJSON', lml: 'toLml'};
+const convertMethods = {html: 'toHTML', json: 'toJSON', lml: 'toLML'};
 const sourceTypes = ['html', 'lml'];
 
 const ARG_START_INDEX = 2;

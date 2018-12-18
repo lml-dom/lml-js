@@ -22,7 +22,7 @@ export class Comment extends Node {
     super(sourceSpan);
   }
 
-  public toHtml(config = defaultConfig, tabulation = ''): string {
+  public toHTML(config = defaultConfig, tabulation = ''): string {
     return config.minify ? '' : `${tabulation}<!-- ${this.multilineIndentation(this.data, config, tabulation)} -->\n`;
   }
 
@@ -30,7 +30,7 @@ export class Comment extends Node {
     return this.json({type: 'comment', data: this.data});
   }
 
-  public toLml(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultConfig, tabulation = ''): string {
     return `${tabulation}${Comment.LML_DIRECTIVE} ${this.multilineIndentation(this.data, config, tabulation)}\n`;
   }
 

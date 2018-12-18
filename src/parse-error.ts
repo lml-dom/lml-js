@@ -1,3 +1,5 @@
+// tslint:disable:completed-docs
+
 import { ParseSourceSpan } from './parse-source-span';
 
 /**
@@ -37,5 +39,83 @@ export class ParseError {
   public toString(): string {
     const details = this.span.details ? `, ${this.span.details}` : '';
     return `${this.contextualMessage()}: ${this.span.start}${details}`;
+  }
+}
+
+export class HtmlParseError extends ParseError {
+  constructor(span: ParseSourceSpan, msg: string) {
+    super(span, msg);
+  }
+}
+
+export class InconsistentIndentationError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Inconsistent indentation: a mix of space and tab characters') {
+    super(span, msg);
+  }
+}
+
+export class InvalidMultilineError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Multiline is only allowed for HTML element attributes') {
+    super(span, msg);
+  }
+}
+
+export class InvalidParentError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Parent element type can not have children') {
+    super(span, msg);
+  }
+}
+
+export class InvalidSourceError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Missing or invalid source') {
+    super(span, msg);
+  }
+}
+
+export class InvalidTagNameError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Invalid tag name') {
+    super(span, msg);
+  }
+}
+
+export class MisplacedDirectiveError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Directive can only be the first entry and on the top level') {
+    super(span, msg);
+  }
+}
+
+export class MissingAttributeNameError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Missing attribute name') {
+    super(span, msg);
+  }
+}
+
+export class MissingAttributeValueError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Missing attribute value') {
+    super(span, msg);
+  }
+}
+
+export class MultilineAttributeIndentationError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Multiline concatenation sign (backslash) must be indented by 1 level') {
+    super(span, msg);
+  }
+}
+
+export class TooMuchIndentationError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Too much indentation') {
+    super(span, msg);
+  }
+}
+
+export class UnclosedQuoteSignError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Unclosed quote sign') {
+    super(span, msg);
+  }
+}
+
+export class UnexpectedQuoteSignError extends ParseError {
+  constructor(span: ParseSourceSpan, msg = 'Unexpected quote sign') {
+    super(span, msg);
   }
 }

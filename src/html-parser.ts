@@ -8,6 +8,7 @@ import { Node } from './ast/node';
 import { CHARACTER_SAFE_ELEMENTS, Text } from './ast/text';
 import { defaultConfig } from './config';
 import { orderAttributes } from './order-attributes';
+import { HtmlParseError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { ParseSourceFile } from './parse-source-file';
 import { ParseSourceSpan } from './parse-source-span';
@@ -87,8 +88,7 @@ export class HtmlParser extends Parser {
   }
 
   private onError(error: Error): void {
-    const span = this.currentSpan();
-    this.parseError(span.start.line, span.start.col, span.end.col, String(error));
+    this.errors.push(new HtmlParseError(this.currentSpan(), String(error)));
   }
 
   private onTag(_name: string): void {

@@ -25,7 +25,7 @@ export class Text extends Node {
     super(sourceSpan);
   }
 
-  public toHtml(config = defaultConfig, tabulation = ''): string {
+  public toHTML(config = defaultConfig, tabulation = ''): string {
     if (this.parent && CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) > -1) {
       return this.data || '';
     }
@@ -42,7 +42,7 @@ export class Text extends Node {
     return this.json({type: 'text', data: this.lineWrap ? (this.data || '').trim() : (this.data || '')});
   }
 
-  public toLml(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultConfig, tabulation = ''): string {
     const data = this.lineWrap ? (this.data || '').trim() : (this.data || '');
     if (!data) {
       return '';

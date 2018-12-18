@@ -22,7 +22,7 @@ export class CData extends Element {
     super('cdata', [], (text ? [text] : []), sourceSpan);
   }
 
-  public toHtml(config = defaultConfig, tabulation = ''): string {
+  public toHTML(config = defaultConfig, tabulation = ''): string {
     let content = '';
     for (const child of (this['children'] || [])) {
       if (child instanceof Text) {
@@ -36,7 +36,7 @@ export class CData extends Element {
     return this.json({type: 'cdata'});
   }
 
-  public toLml(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultConfig, tabulation = ''): string {
     let content = '';
     for (const child of (this.children || [])) {
       if (child instanceof Text) {
