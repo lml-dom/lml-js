@@ -1,0 +1,10 @@
+{
+  "files.exclude": {
+    ".nyc_output": true,
+    ".vscode": true,
+    "coverage": true,
+    "lib": true,
+    "node_modules": true,
+    "package-lock.json": true
+  }
+}

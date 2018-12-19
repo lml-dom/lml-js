@@ -1,4 +1,4 @@
-import { defaultConfig } from '../config';
+import { defaultOutputConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Node } from './node';
@@ -18,19 +18,19 @@ export class Comment extends Node {
    * @argument data Text content
    * @argument sourceSpan Full string source span (including the HTML tag or LML directive character)
    */
-  constructor(public data: string, sourceSpan: ParseSourceSpan) {
+  constructor(public data: string, sourceSpan?: ParseSourceSpan) {
     super(sourceSpan);
   }
 
-  public toHTML(config = defaultConfig, tabulation = ''): string {
+  public toHTML(config = defaultOutputConfig(), tabulation = ''): string {
     return config.minify ? '' : `${tabulation}<!-- ${this.multilineIndentation(this.data, config, tabulation)} -->\n`;
   }
 
-  public toJSON(_config = defaultConfig): Object {
-    return this.json({type: 'comment', data: this.data});
+  public toJSON(_config = defaultOutputConfig()): Object {
+    return {type: 'comment', data: this.data};
   }
 
-  public toLML(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultOutputConfig(), tabulation = ''): string {
     return `${tabulation}${Comment.LML_DIRECTIVE} ${this.multilineIndentation(this.data, config, tabulation)}\n`;
   }
 

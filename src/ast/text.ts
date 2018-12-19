@@ -1,4 +1,4 @@
-import { defaultConfig } from '../config';
+import { defaultOutputConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Node } from './node';
@@ -21,12 +21,12 @@ export class Text extends Node {
    * @argument data Text value
    * @argument sourceSpan Text source span
    */
-  constructor(public data: string, sourceSpan: ParseSourceSpan) {
+  constructor(public data: string, sourceSpan?: ParseSourceSpan) {
     super(sourceSpan);
   }
 
-  public toHTML(config = defaultConfig, tabulation = ''): string {
-    if (this.parent && CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) > -1) {
+  public toHTML(config = defaultOutputConfig(), tabulation = ''): string {
+    if (this.parent && CHARACTER_SAFE_ELEMENTS.includes(this.parent.name)) {
       return this.data || '';
     }
 
@@ -38,15 +38,15 @@ export class Text extends Node {
     return (config.minify ? '' : tabulation) + this.multilineIndentation(data, config, indent) + (config.minify ? '' : '\n');
   }
 
-  public toJSON(_config = defaultConfig): Object {
-    return this.json({type: 'text', data: this.lineWrap ? (this.data || '').trim() : (this.data || '')});
+  public toJSON(_config = defaultOutputConfig()): Object {
+    return {type: 'text', data: this.lineWrap ? (this.data || '').trim() : (this.data || '')};
   }
 
-  public toLML(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultOutputConfig(), tabulation = ''): string {
     const data = this.lineWrap ? (this.data || '').trim() : (this.data || '');
     if (!data) {
       return '';
-    } else if (this.parent && TEXT_BLOCK_ELEMENTS.indexOf(this.parent.name) > -1) {
+    } else if (this.parent && TEXT_BLOCK_ELEMENTS.includes(this.parent.name)) {
       const indent = tabulation.substr(0, tabulation.length - config.indentation.length);
       return `${this.multilineIndentation(data, config, indent, true)}\n`;
     }
@@ -57,6 +57,6 @@ export class Text extends Node {
    * Determine if text content can be wrapped (e.g. no need for value safety)
    */
   protected get lineWrap(): boolean {
-    return CHARACTER_SAFE_ELEMENTS.indexOf(this.parent.name) === -1 && TEXT_BLOCK_ELEMENTS.indexOf(this.parent.name) === -1;
+    return this.parent && !CHARACTER_SAFE_ELEMENTS.includes(this.parent.name) && !TEXT_BLOCK_ELEMENTS.includes(this.parent.name);
   }
 }

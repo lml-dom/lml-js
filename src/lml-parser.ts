@@ -4,7 +4,7 @@ import { Directive } from './ast/directive';
 import { Element } from './ast/element';
 import { Node } from './ast/node';
 import { CHARACTER_SAFE_ELEMENTS, TEXT_BLOCK_ELEMENTS, Text } from './ast/text';
-import { defaultConfig } from './config';
+import { defaultParseConfig } from './config';
 import { orderAttributes } from './order-attributes';
 import { InconsistentIndentationError, InvalidMultilineError, InvalidParentError, InvalidTagNameError, MisplacedDirectiveError,
   MultilineAttributeIndentationError, TooMuchIndentationError } from './parse-error';
@@ -25,11 +25,35 @@ export class LmlParser extends Parser {
    * @argument src LML source string
    * @argument config Optional input parsing configuration
    */
-  constructor(url: string, src: string, config = defaultConfig) {
-    super(url, src, config);
+  constructor(url: string, src: string, config = defaultParseConfig()) {
+    super();
+    this.preProcess(url, src, config);
+    this.parse();
   }
 
-  protected parse(): void {
+  /**
+   * Automatically ID indentation pattern in the source file
+   */
+  private idIndentation(): void {
+    if (!this.config.indentation) {
+      // ID indentation pattern
+      for (const line of this.source.lines) {
+        if (line.trim()) {
+          const lineIndent = line.substr(this.source.blockIndentation).match(INDENTATION_REGEX)[0];
+          if (lineIndent.length) {
+            this.config.indentation = lineIndent;
+            break;
+          }
+        }
+      }
+      this.config.indentation = this.config.indentation || '  ';
+    }
+  }
+
+  /**
+   * Process input
+   */
+  private parse(): void {
     const bi = this.source.blockIndentation;
     const lines = this.source.lines;
     const len = lines.length;
@@ -39,32 +63,17 @@ export class LmlParser extends Parser {
     let spaces: number;
     let trimmed: string;
 
-    // ID indentation pattern
-    let indentation: string;
-    let indentationLen: number;
-    for (i = 0; i < len; i++) {
-      line = lines[i];
-      if (line.trim()) {
-        const lineIndent = line.substr(bi).match(INDENTATION_REGEX)[0];
-        if (lineIndent.length) {
-          if (indentation == null) {
-            indentation = lineIndent;
-            indentationLen = lineIndent.length;
-            break;
-          }
-        }
-      }
-    }
-    if (indentation == null) {
-      indentation = '  ';
-      indentationLen = indentation.length;
-    }
+    this.idIndentation();
+    const indentation = this.config.indentation;
+    const indentationLen = indentation.length;
 
     const directiveMultilineBlock = (): void => {
       const expectedTabulation = lines[i].substr(bi, spaces) + indentation;
       while (i < len - 1 && (!lines[i + 1].trim() || lines[i + 1].substr(bi, spaces + indentationLen) === expectedTabulation)) {
         i++;
-        node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+        if (node.sourceSpan) {
+          node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+        }
         (<Comment | Text>node).data += '\n' + lines[i].substr(bi + spaces + indentationLen);
       }
     };
@@ -75,6 +84,7 @@ export class LmlParser extends Parser {
       if (!(<Element>node).name.match(TAGNAME_RX)) {
         this.errors.push(new InvalidTagNameError(this.parseSpan(i, bi + spaces, i, bi + spaces + (<Element>node).name.length)));
       }
+
       // multiline attributes
       while (i < len - 1 && (!(trimmed = lines[i + 1].trim()) || trimmed.substr(0, 1) === '\\')) {
         i++;
@@ -83,7 +93,9 @@ export class LmlParser extends Parser {
             const pos = lines[i].indexOf('\\');
             this.errors.push(new MultilineAttributeIndentationError(this.parseSpan(i, pos, i, pos + 1)));
           }
-          node.sourceSpan.end = new ParseLocation(this.source, null, i, bi + spaces + trimmed.length);
+          if (node.sourceSpan) {
+            node.sourceSpan.end = new ParseLocation(this.source, null, i, bi + spaces + trimmed.length);
+          }
           parsed = this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1, true);
           (<Element>node).attrs.push(...parsed.attrs);
         }
@@ -95,7 +107,7 @@ export class LmlParser extends Parser {
       }
 
       // script or style block contents
-      if (TEXT_BLOCK_ELEMENTS.indexOf((<Element>node).name) > -1) {
+      if (TEXT_BLOCK_ELEMENTS.includes((<Element>node).name)) {
         const startLine = i + 1;
         const contents: string[] = [];
         const expectedTabulation = lines[i].substr(bi, spaces) + indentation;
@@ -104,7 +116,7 @@ export class LmlParser extends Parser {
           contents.push(lines[i].substr(bi + spaces + indentationLen));
         }
         let content = contents.join('\n');
-        if (CHARACTER_SAFE_ELEMENTS.indexOf((<Element>node).name) === -1) {
+        if (!CHARACTER_SAFE_ELEMENTS.includes((<Element>node).name)) {
           content = content.trim();
         }
         if (content) {
@@ -122,7 +134,9 @@ export class LmlParser extends Parser {
         spaces = lineIndent.length;
         const level = spaces / indentationLen;
         const directive = trimmed.substr(0, 1);
-        if (!this._levels[level - 1]) {
+        if (!Number.isInteger(level)) {
+          this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces)));
+        } else if (!this._levels[level - 1]) {
           this.errors.push(new TooMuchIndentationError(this.parseSpan(i, this._levels.length * indentationLen, i, spaces)));
         } else if (!this._levels[level - 1]['children']) {
           this.errors.push(new InvalidParentError(this.parseSpan(i, bi + spaces, i, line.length)));
@@ -139,8 +153,9 @@ export class LmlParser extends Parser {
             directiveMultilineBlock();
             node = cdata;
           } else if (directive === Comment.LML_DIRECTIVE) {
-            node = new Comment(trimmed.substr(1).trim(), this.parseSpan(i, bi + spaces, i, line.length));
+            node = new Comment(trimmed.substr(1), this.parseSpan(i, bi + spaces, i, line.length));
             directiveMultilineBlock();
+            (<Comment>node).data = (<Comment>node).data.trim();
           } else if (directive === Directive.LML_DIRECTIVE) {
             if (bi || spaces) {
               this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, bi + spaces)));

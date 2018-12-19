@@ -1,4 +1,3 @@
-import { defaultConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 /**
@@ -13,16 +12,22 @@ export class Attribute {
    * @argument sourceSpan Source full string span (includes name, value, quotes etc)
    * @argument valueSpan Source value string span (includes value, excluding quotes)
    */
-  constructor(public name: string, public value: string, public sourceSpan: ParseSourceSpan, public valueSpan?: ParseSourceSpan) {}
+  constructor(public name: string, public value: string, public sourceSpan?: ParseSourceSpan, public valueSpan?: ParseSourceSpan) {}
+
+  /**
+   * JSON object description of attribute
+   */
+  public toJSON(): Object {
+    return this.value != null ? {name: this.name, value: this.value} : {name: this.name};
+  }
 
   /**
    * Stringify an attribute to HTML or LML syntax
-   * @argument _config Optional configuration
    */
-  public toString(_config = defaultConfig): string {
+  public toString(): string {
     let str = this.name;
     if (this.value) {
-      const quote = this.value.indexOf('"') > -1 && this.value.indexOf('\'') === -1 ? '\'' : '"';
+      const quote = this.value.includes('"') && !this.value.includes('\'') ? '\'' : '"';
       str += `=${quote + this.value + quote}`;
     }
     return str;

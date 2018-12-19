@@ -1,12 +1,12 @@
 import { Attribute } from './ast/attribute';
-import { Config } from './config';
+import { OutputConfig } from './config';
 
 const NATURAL_ATTRIBUTE_RX = /[^a-z0-9\-]/g;
 
 /**
  * Order attributes based on configuration
  */
-export function orderAttributes(attrs: Attribute[], config: Config): Attribute[] {
+export function orderAttributes(attrs: Attribute[], config: OutputConfig): Attribute[] {
   if (config.orderAttributes === 'angular') {
     attrs.sort((a, b) => {
       return a.name.toLowerCase().replace('(', '{') > b.name.toLowerCase().replace('(', '{') ? 1 : -1;

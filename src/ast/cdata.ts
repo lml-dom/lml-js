@@ -1,4 +1,4 @@
-import { defaultConfig } from '../config';
+import { defaultOutputConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Element } from './element';
@@ -15,14 +15,23 @@ export class CData extends Element {
   public static readonly LML_DIRECTIVE = '$';
 
   /**
+   * Fake tag name. Used for parent identification, for example in CHARACTER_SAFE_ELEMENTS in text.ts
+   */
+  public readonly name = 'cdata';
+
+  /**
    * @argument sourceSpan Full string source span (including the HTML tag or LML directive character)
    * @argument text Optionally add text child right away
    */
-  constructor(sourceSpan: ParseSourceSpan, text?: Text) {
+  constructor(sourceSpan?: ParseSourceSpan, text?: Text) {
     super('cdata', [], (text ? [text] : []), sourceSpan);
   }
 
-  public toHTML(config = defaultConfig, tabulation = ''): string {
+  public toAST(config = defaultOutputConfig()): Object {
+    return this.astInfo({type: 'cdata', children: (this.children || []).map((child) => child.toAST(config))});
+  }
+
+  public toHTML(_config = defaultOutputConfig(), tabulation = ''): string {
     let content = '';
     for (const child of (this['children'] || [])) {
       if (child instanceof Text) {
@@ -32,11 +41,11 @@ export class CData extends Element {
     return `${tabulation}<![CDATA[${content}]]>\n`;
   }
 
-  public toJSON(_config = defaultConfig): Object {
-    return this.json({type: 'cdata'});
+  public toJSON(config = defaultOutputConfig()): Object {
+    return {type: 'cdata', children: (this.children || []).map((child) => child.toJSON(config))};
   }
 
-  public toLML(config = defaultConfig, tabulation = ''): string {
+  public toLML(config = defaultOutputConfig(), tabulation = ''): string {
     let content = '';
     for (const child of (this.children || [])) {
       if (child instanceof Text) {

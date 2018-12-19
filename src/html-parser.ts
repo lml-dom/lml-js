@@ -6,7 +6,7 @@ import { Directive } from './ast/directive';
 import { Element } from './ast/element';
 import { Node } from './ast/node';
 import { CHARACTER_SAFE_ELEMENTS, Text } from './ast/text';
-import { defaultConfig } from './config';
+import { defaultParseConfig } from './config';
 import { orderAttributes } from './order-attributes';
 import { HtmlParseError } from './parse-error';
 import { ParseLocation } from './parse-location';
@@ -36,11 +36,16 @@ export class HtmlParser extends Parser {
    * @argument src HTML source string
    * @argument config Optional input parsing configuration
    */
-  constructor(url: string, src: string, config = defaultConfig) {
-    super(url, src, config);
+  constructor(url: string, src: string, config = defaultParseConfig()) {
+    super();
+    this.preProcess(url, src, config);
+    this.parse();
   }
 
-  protected parse(): void {
+  /**
+   * Process input
+   */
+  private parse(): void {
     this._parser = new HtmlParser2({
       oncdataend: () => { this._cdata = null; },
       oncdatastart: () => { this.onCData(); },
@@ -55,7 +60,7 @@ export class HtmlParser extends Parser {
     this._levels.length = 0;
     this._parser = null;
 
-    const root = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 1));
+    const root = new Element('root', [], this.rootNodes);
     this.postProcess([root]);
   }
 
@@ -72,7 +77,7 @@ export class HtmlParser extends Parser {
   private onCloseTag(name: string): void {
     const span = this.currentSpan();
     const node = this._levels[this._parser['_stack'].length];
-    if (node && node.sourceSpan.start.offset !== span.start.offset) {
+    if (node && node.sourceSpan && node.sourceSpan.start.offset !== span.start.offset) {
       node.closeTagSpan = span;
     }
   }
@@ -104,7 +109,9 @@ export class HtmlParser extends Parser {
     const span = this.currentSpan();
     if (level === this._lastLevel && this._last instanceof Text) {
       (<Text>this._last).data += text;
-      (<Text>this._last).sourceSpan.end = span.end;
+      if (this._last.sourceSpan) {
+        this._last.sourceSpan.end = span.end;
+      }
     } else {
       this.add(new Text(text, span), level);
     }
@@ -117,7 +124,7 @@ export class HtmlParser extends Parser {
 
         const children = node.children || [];
 
-        if (CHARACTER_SAFE_ELEMENTS.indexOf(node.name) === -1) {
+        if (!CHARACTER_SAFE_ELEMENTS.includes(node.name)) {
           // sanitize text indentations
           for (const text of children) {
             if (text instanceof Text) {

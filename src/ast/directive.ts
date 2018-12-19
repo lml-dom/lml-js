@@ -1,4 +1,4 @@
-import { defaultConfig } from '../config';
+import { defaultOutputConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Node } from './node';
@@ -17,19 +17,19 @@ export class Directive extends Node {
    * @argument data Text content
    * @argument sourceSpan Full string source span (including the HTML tag or LML directive character)
    */
-  constructor(public data: string, sourceSpan: ParseSourceSpan) {
+  constructor(public data: string, sourceSpan?: ParseSourceSpan) {
     super(sourceSpan);
   }
 
-  public toHTML(config = defaultConfig): string {
+  public toHTML(_config = defaultOutputConfig()): string {
     return `<${this.data}>\n`;
   }
 
-  public toJSON(config = defaultConfig): Object {
-    return this.json({type: 'directive', name: this.data.split(' ')[0].toLowerCase(), data: this.data});
+  public toJSON(_config = defaultOutputConfig()): Object {
+    return {type: 'directive', name: this.data.split(' ')[0].toLowerCase(), data: this.data};
   }
 
-  public toLML(_config = defaultConfig): string {
+  public toLML(_config = defaultOutputConfig()): string {
     return `${this.data}\n`;
   }
 }

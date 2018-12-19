@@ -2,7 +2,7 @@ import { Attribute } from './ast/attribute';
 import { Element } from './ast/element';
 import { Node } from './ast/node';
 import { Text } from './ast/text';
-import { Config, defaultConfig } from './config';
+import { ParseConfig, defaultOutputConfig } from './config';
 import { InvalidSourceError, MissingAttributeNameError, MissingAttributeValueError, ParseError, UnclosedQuoteSignError,
   UnexpectedQuoteSignError } from './parse-error';
 import { ParseLocation } from './parse-location';
@@ -19,14 +19,27 @@ interface SrcTagPart {
 
 const N_QUOTES = 2;
 
+const NOT_TAB_OR_SPACE_RX = /[^ \t]/g;
+const SPACE_RX = / /g;
+const TAB_RX = /\t/g;
+
 /**
  * Parsing base class. Serves HtmlParser and LmlParser
  */
 export abstract class Parser {
   /**
-   * Alias to `.toLML()`
+   * Returns first parsing error if any
    */
-  public toString = this.toLML;
+  public get error(): ParseError {
+    return this.errors[0];
+  }
+
+  /**
+   * Indicates whether parsing should stop (e.g too many errors)
+   */
+  protected get stopParse(): boolean {
+    return this.errors.length >= Math.max(+this.config.stopOnErrorCount, 1);
+  }
 
   /**
    * Errors while parsing
@@ -39,9 +52,19 @@ export abstract class Parser {
   public readonly rootNodes: Node[] = [];
 
   /**
+   * Options for parsing
+   */
+  public config?: ParseConfig;
+
+  /**
    * Parsing source
    */
-  public readonly source: ParseSourceFile;
+  public source: ParseSourceFile;
+
+  /**
+   * Alias to `.toLML()`
+   */
+  public toString = this.toLML;
 
   /**
    * Last node that was parsed
@@ -58,26 +81,20 @@ export abstract class Parser {
    */
   protected _levels: Element[] = [];
 
-  constructor(url: string, src: string, public readonly config?: Config) {
-    url = typeof url === 'string' && url || '';
-    if (typeof src !== 'string') {
-      this.source = new ParseSourceFile('', url);
-      this.errors.push(new InvalidSourceError(this.parseSpan(0, 0)));
-    } else {
-      this.source = new ParseSourceFile(src, url);
-    }
-    this._levels[-1] = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 0));
-    this.parse();
-  }
-
   /**
-   * Returns first parsing error if any
+   * Determines whether indentation is errorous
    */
-  public get error(): ParseError {
-    return this.errors[0];
+  public static validateIndentation(indentation: string): boolean {
+    return !indentation.replace(NOT_TAB_OR_SPACE_RX, '').length &&
+      !indentation.replace((indentation[0] === '\t' ? TAB_RX : SPACE_RX), '').length &&
+      (indentation[0] !== '\t' || indentation.length === 1);
   }
 
-  public toHTML(config = defaultConfig): string {
+  public toAST(config = defaultOutputConfig()): Object {
+    return this.rootNodes.map((node) => node.toAST(config));
+  }
+
+  public toHTML(config = defaultOutputConfig()): string {
     let out = '';
     for (const child of this.rootNodes || []) {
       out += child.toHTML(config);
@@ -85,24 +102,16 @@ export abstract class Parser {
     return out;
   }
 
-  public toJSON(config = defaultConfig): Object {
+  public toJSON(config = defaultOutputConfig()): Object {
     return this.rootNodes.map((node) => node.toJSON(config));
   }
 
-  public toLML(config = defaultConfig): string {
+  public toLML(config = defaultOutputConfig()): string {
     let out = '';
     for (const child of this.rootNodes || []) {
       out += child.toLML(config);
     }
     return out;
-  }
-
-  /**
-   * Indicates whether parsing should stop (e.g too many errors)
-   */
-  protected get stopParse(): boolean {
-    const errorLimit = this.config.stopOnErrorCount || defaultConfig.stopOnErrorCount || 1;
-    return this.errors.length >= errorLimit;
   }
 
   /**
@@ -127,16 +136,13 @@ export abstract class Parser {
       const previous = children[i - 1];
       if (child instanceof Text && previous instanceof Text) {
         previous.data += child.data;
-        previous.sourceSpan.end = child.sourceSpan.end;
+        if (previous.sourceSpan && child.sourceSpan) {
+          previous.sourceSpan.end = child.sourceSpan.end;
+        }
         children.splice(i, 1);
       }
     }
   }
-
-  /**
-   * Parsing. Called directly from constructor.
-   */
-  protected abstract parse(): void;
 
   /**
    * Obtain ParseSourceSpan from start line/col and end line/col
@@ -205,7 +211,7 @@ export abstract class Parser {
         const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
         this.errors.push(new UnexpectedQuoteSignError(errSpan));
       }
-      return new Attribute(part.src, '', srcSpan);
+      return new Attribute(part.src, null, srcSpan);
     } else if (part.quotePos.length) {
       if (part.quotePos.length === 1 || part.posEq !== part.quotePos[0] - 1) {
         const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
@@ -227,5 +233,18 @@ export abstract class Parser {
       const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1, part.line, part.col + part.src.length);
       return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1, part.src.length), srcSpan, valueSpan);
     }
+  }
+
+  /** initial to-dos */
+  protected preProcess(url: string, src: string, config: ParseConfig): void {
+    this.config = config;
+    url = typeof url === 'string' && url || '';
+    if (typeof src !== 'string') {
+      this.source = new ParseSourceFile('', url);
+      this.errors.push(new InvalidSourceError(this.parseSpan(0, 0)));
+    } else {
+      this.source = new ParseSourceFile(src, url);
+    }
+    this._levels[-1] = new Element('root', [], this.rootNodes, this.parseSpan(0, 0, 0, 0));
   }
 }

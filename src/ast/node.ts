@@ -1,4 +1,4 @@
-import { Config } from '../config';
+import { OutputConfig } from '../config';
 import { ParseSourceSpan } from '../parse-source-span';
 
 import { Element } from './element';
@@ -22,7 +22,7 @@ export abstract class Node {
   /**
    * @argument sourceSpan Source full string span for the whole tag
    */
-  constructor(public sourceSpan: ParseSourceSpan) {}
+  constructor(public sourceSpan?: ParseSourceSpan) {}
 
   /**
    * Indicates that based on the context (e.g. this is text, and parent is not something like textarea or cdata),
@@ -35,8 +35,8 @@ export abstract class Node {
   /**
    * JSON base. Used by extending classes toJSON() methods
    */
-  protected json(info: Object): Object {
-    return {...info, startIndex: this.sourceSpan.start.offset, endIndex: this.sourceSpan.end.offset - 1};
+  protected astInfo(info: Object): Object {
+    return this.sourceSpan ? {...info, startIndex: this.sourceSpan.start.offset, endIndex: this.sourceSpan.end.offset - 1} : info;
   }
 
   /**
@@ -66,18 +66,27 @@ export abstract class Node {
   }
 
   /**
+   * Export node to standard AST, including possible children. Will be like {@link toJSON} unless overridden.
+   * Differences include: element arguments are in a dictionary, there may be less position info
+   * @argument config Optional output syntax configuration
+   */
+  public toAST(config?: OutputConfig): Object {
+    return this.astInfo(this.toJSON(config));
+  }
+
+  /**
    * Export node to HTML, including possible children
    * @argument config Optional output syntax configuration
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toHTML(config?: Config, tabulation?: string): string;
+  public abstract toHTML(config?: OutputConfig, tabulation?: string): string;
 
   /**
-   * Export node to JSON, including possible children. Meant to create an AST map.
+   * Export node to JSON, including possible children. Meant to create a full static representation of the parsed DOM
    * @argument config Optional output syntax configuration
    */
-  public abstract toJSON(config?: Config): Object;
+  public abstract toJSON(config?: OutputConfig): Object;
 
   /**
    * Export node to LML, including possible children
@@ -85,21 +94,27 @@ export abstract class Node {
    * @argument tabulation Starting indentation. Empty string (default) for top level or >0 repetations of config.indentation
    * @argument textOnly whether to accept only text nodes as children. Meant for internal use only
    */
-  public abstract toLML(config?: Config, tabulation?: string): string;
+  public abstract toLML(config?: OutputConfig, tabulation?: string): string;
 
   /**
    * @see {@link toLML} Same as `toLML()`
    */
-  public toString(config?: Config, tabulation?: string): string {
+  public toString(config?: OutputConfig, tabulation?: string): string {
     return this.toLML(config, tabulation);
   }
 
   /**
    * Will prefix indentation for an LML multiline text (script/style/cdata/comment/textarea data) block
    */
-  protected multilineIndentation(value: string, config: Config, tabulation: string, startOnNextLine = false, backticks = false): string {
+  protected multilineIndentation(
+    value: string,
+    config: OutputConfig,
+    sourceIndentation: string,
+    startOnNextLine = false,
+    backticks = false
+  ): string {
     let backtickCount = 0;
-    const indentation = tabulation + config.indentation;
+    const indentation = sourceIndentation + config.indentation;
     const indentLen = indentation.length;
     return value.split('\n').map((line, i) => {
       line = ((startOnNextLine || i) && (!backticks || backtickCount % EVEN === 0)) ? indentation + line : line;
