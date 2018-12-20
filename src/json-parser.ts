@@ -5,7 +5,7 @@ import { Directive } from './ast/directive';
 import { Element } from './ast/element';
 import { Text } from './ast/text';
 import { defaultParseConfig } from './config';
-import { JsonComment, JsonDirective, JsonElement, JsonNode, JsonText } from './json-parser.d';
+import { JsonCdata, JsonComment, JsonDirective, JsonElement, JsonNode, JsonText } from './json-parser.d';
 import { orderAttributes } from './order-attributes';
 import { JsonParseError } from './parse-error';
 import { Parser } from './parser';
@@ -75,31 +75,34 @@ export class JsonParser extends Parser {
       switch (node.type) {
         case 'element': {
           const element = new Element((<JsonElement>node).name, this.attributes((<JsonElement>node).attributes), []);
+          element.parent = parent;
           orderAttributes(element.attrs, this.config);
-          parent.children.push(element);
           this.parse((<JsonElement>node).children || [], element);
           break;
         }
 
         case 'cdata': {
-          const element = new CData();
-          parent.children.push(element);
-          this.parse((<JsonElement>node).children || [], element);
+          const cdata = new CData();
+          cdata.parent = parent;
+          this.parse((<JsonCdata>node).children || [], cdata);
           break;
         }
 
         case 'comment': {
-          parent.children.push(new Comment((<JsonComment>node).data || ''));
+          const comment = new Comment((<JsonComment>node).data || '');
+          comment.parent = parent;
           break;
         }
 
         case 'directive': {
-          parent.children.push(new Directive((<JsonDirective>node).data || ''));
+          const directive = new Directive((<JsonDirective>node).data || '');
+          directive.parent = parent;
           break;
         }
 
         case 'text': {
-          parent.children.push(new Text((<JsonText>node).data || ''));
+          const text = new Text((<JsonText>node).data || '');
+          text.parent = parent;
           break;
         }
 

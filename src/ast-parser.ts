@@ -1,4 +1,4 @@
-import { AstComment, AstDirective, AstNode, AstTag, AstText } from './ast-parser.d';
+import { AstCdata, AstComment, AstDirective, AstNode, AstTag, AstText } from './ast-parser.d';
 import { Attribute } from './ast/attribute';
 import { CData } from './ast/cdata';
 import { Comment } from './ast/comment';
@@ -74,30 +74,33 @@ export class AstParser extends Parser {
         case 'style': {
           const element = new Element((<AstTag>node).name, this.attributes((<AstTag>node).attribs), []);
           orderAttributes(element.attrs, this.config);
-          parent.children.push(element);
+          element.parent = parent;
           this.parse((<AstTag>node).children || [], element);
           break;
         }
 
         case 'cdata': {
-          const element = new CData();
-          parent.children.push(element);
-          this.parse((<AstTag>node).children || [], element);
+          const cdata = new CData();
+          cdata.parent = parent;
+          this.parse((<AstCdata>node).children || [], cdata);
           break;
         }
 
         case 'comment': {
-          parent.children.push(new Comment((<AstComment>node).data || ''));
+          const comment = new Comment((<AstComment>node).data || '');
+          comment.parent = parent;
           break;
         }
 
         case 'directive': {
-          parent.children.push(new Directive((<AstDirective>node).data || ''));
+          const directive = new Directive((<AstDirective>node).data || '');
+          directive.parent = parent;
           break;
         }
 
         case 'text': {
-          parent.children.push(new Text((<AstText>node).data || ''));
+          const text = new Text((<AstText>node).data || '');
+          text.parent = parent;
           break;
         }
 

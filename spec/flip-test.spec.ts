@@ -1,6 +1,8 @@
 import { readFileSync } from 'fs';
 
+import { AstParser } from '../src/ast-parser';
 import { HtmlParser } from '../src/html-parser';
+import { JsonParser } from '../src/json-parser';
 import { LmlParser } from '../src/lml-parser';
 
 import { strDiff } from './helpers/str-diff';
@@ -14,6 +16,12 @@ describe('Parser', () => {
   const html1 = (new LmlParser('1.lml', lml1)).toHTML();
   const lml2 = (new HtmlParser('1.html', html1)).toLML();
   const html2 = (new LmlParser('2.lml', lml2)).toHTML();
+  const ast1 = (new HtmlParser('2.html', html2)).toAST();
+  const json1 = (new AstParser('1.ast', ast1)).toJSON();
+  const html3 = (new JsonParser('1.json', json1)).toHTML();
+  const ast2 = (new HtmlParser('3.html', html3)).toAST();
+  const json2 = (new AstParser('2.ast', JSON.stringify(ast2))).toJSON();
+  const lml3 = (new JsonParser('2.json', JSON.stringify(json2))).toLML();
 
   it('works with consistent outputs', () => {
     let d = strDiff(lml1, lml2);
@@ -27,5 +35,7 @@ describe('Parser', () => {
       console.log('html diff', JSON.stringify(html1.substr(d, QUOTE_LEN)), 'VS', JSON.stringify(html2.substr(d, QUOTE_LEN)));
     }
     expect(html1).toBe(html2, 'HTML outputs');
+
+    expect(lml2).toBe(lml3, 'After AST and JSON');
   });
 });

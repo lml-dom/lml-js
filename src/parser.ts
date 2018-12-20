@@ -196,7 +196,10 @@ export abstract class Parser {
     }
 
     return {
-      attrs: parts.filter((part, i) => part.src && (i < parts.length - 1 || part.src !== '/')).map((part) => this.partToAttribute(part)),
+      attrs: parts
+        .filter((part, i) => part.src && (i < parts.length - 1 || part.src !== '/'))
+        .map((part) => this.partToAttribute(part))
+        .filter((attr) => attr),
       text
     };
   }
@@ -210,28 +213,40 @@ export abstract class Parser {
       if (part.quotePos.length) {
         const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
         this.errors.push(new UnexpectedQuoteSignError(errSpan));
+      } else {
+        return new Attribute(part.src, null, srcSpan);
       }
-      return new Attribute(part.src, null, srcSpan);
     } else if (part.quotePos.length) {
-      if (part.quotePos.length === 1 || part.posEq !== part.quotePos[0] - 1) {
+      const quoteStart = part.posEq === part.quotePos[0] - 1 ? 1 : 0;
+      if (part.quotePos.length === 1 || !quoteStart) {
         const errSpan = this.parseSpan(part.line, part.col + part.quotePos[0], null, part.col + part.quotePos[0] + 1);
         this.errors.push(new UnclosedQuoteSignError(errSpan));
-      } if (part.quotePos.length > N_QUOTES) {
-        const errSpan = this.parseSpan(part.line, part.col + part.quotePos[N_QUOTES], null, part.col + part.quotePos[N_QUOTES] + 1);
-        this.errors.push(new UnexpectedQuoteSignError(errSpan));
+        if (part.posEq > 0) {
+          if (part.posEq < part.src.length - 1) {
+            const value = part.src.substring(part.posEq + 1 + quoteStart, part.src.length);
+            const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1 + quoteStart, part.line, part.col + part.src.length);
+            return new Attribute(part.src.substr(0, part.posEq), value, srcSpan, valueSpan);
+          } else {
+            return new Attribute(part.src.substr(0, part.posEq), null, srcSpan);
+          }
+        }
       } else if (part.posEq < 1) {
         this.errors.push(new MissingAttributeNameError(this.parseSpan(part.line, part.col, null, part.col + 1)));
+      } else {
+        const value = part.src.substring(part.quotePos[0] + 1, part.src.length - 1);
+        const valueSpan = this.parseSpan(part.line, part.col + part.quotePos[0] + 1, part.line, part.col + part.src.length - 1);
+        return new Attribute(part.src.substr(0, part.posEq), value, srcSpan, valueSpan);
       }
-      const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1 + 1, part.line, part.col + part.src.length - 1);
-      return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1 + 1, part.src.length - 1), srcSpan, valueSpan);
     } else {
       if (part.posEq < 1) {
         this.errors.push(new MissingAttributeNameError(this.parseSpan(part.line, part.col, null, part.col + 1)));
       } else if (part.posEq === part.src.length - 1) {
         this.errors.push(new MissingAttributeValueError(this.parseSpan(part.line, part.col, null, part.col + 1)));
+        return new Attribute(part.src.substr(0, part.posEq), null, srcSpan);
+      } else {
+        const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1, part.line, part.col + part.src.length);
+        return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1, part.src.length), srcSpan, valueSpan);
       }
-      const valueSpan = this.parseSpan(part.line, part.col + part.posEq + 1, part.line, part.col + part.src.length);
-      return new Attribute(part.src.substr(0, part.posEq), part.src.substring(part.posEq + 1, part.src.length), srcSpan, valueSpan);
     }
   }
 
