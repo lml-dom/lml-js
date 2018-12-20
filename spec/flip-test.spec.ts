@@ -19,9 +19,9 @@ describe('Parser', () => {
   const ast1 = (new HtmlParser('2.html', html2)).toAST();
   const json1 = (new AstParser('1.ast', ast1)).toJSON();
   const html3 = (new JsonParser('1.json', json1)).toHTML();
-  const ast2 = (new HtmlParser('3.html', html3)).toAST();
-  const json2 = (new AstParser('2.ast', JSON.stringify(ast2))).toJSON();
-  const lml3 = (new JsonParser('2.json', JSON.stringify(json2))).toLML();
+  const json2 = (new HtmlParser('3.html', html3)).toJSON();
+  const ast2 = (new JsonParser('2.json', JSON.stringify(json2))).toAST();
+  const lml3 = (new AstParser('2.ast', JSON.stringify(ast2))).toString();
 
   it('works with consistent outputs', () => {
     let d = strDiff(lml1, lml2);
