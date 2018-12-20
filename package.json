@@ -30,9 +30,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lml-dom/lml-node.git"
+    "url": "https://github.com/lml-dom/lml-js.git"
   },
-  "bugs": "https://github.com/lml-dom/lml-node/issues",
+  "bugs": "https://github.com/lml-dom/lml-js/issues",
   "homepage": "https://lml-dom.org/",
   "dependencies": {
     "htmlparser2": "3.10.0",
