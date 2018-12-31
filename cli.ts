@@ -1,132 +1,194 @@
 
-import { readFile, writeFile } from 'fs';
+import { readFileSync, writeFileSync } from 'fs';
 import * as minimist from 'minimist';
 
-import { AstParser } from './src/ast-parser';
-import { defaultOutputConfig, defaultParseConfig } from './src/config';
-import { HtmlParser } from './src/html-parser';
-import { JsonParser } from './src/json-parser';
-import { LmlParser } from './src/lml-parser';
+import { parseAST, parseHTML, parseJSON, parseLML } from './index';
+import { Output, OutputConfig } from './src/output';
 import { ParseError } from './src/parse-error';
-import { Parser } from './src/parser';
+import { ParseConfig, Parser } from './src/parser';
 
-const LINE_WRAP_MIN = 40;
+type Format = 'ast' | 'html' | 'json' | 'lml';
 
-type ParserClass = typeof AstParser | typeof HtmlParser | typeof JsonParser | typeof LmlParser;
-const TYPES: {[type: string]: ParserClass} = {ast: AstParser, html: HtmlParser, json: JsonParser, lml: LmlParser};
-
-/**
- * Print human readable error(s) and stop running.
- */
-function error(...errors: (string | Error | ParseError)[]): void {
-  errors = errors.filter((err) => !!err);
-  if (errors.length) {
-    for (const err of errors) {
-      console.error('[ERROR]', typeof err === 'string' ? err : (String(err)));
-    }
-    console.error('Run `lml --help` for all options');
-    process.exit(1);
-  }
-}
-
-const outputConfig = {...defaultOutputConfig()};
-const parseConfig = {...defaultParseConfig()};
-
-const ARG_START_INDEX = 2;
-const args = minimist(process.argv.slice(ARG_START_INDEX));
-if (args['h'] || args['help']) {
-  console.log(`
+const help = `
 An LML conversion tool between LML, HTML and JSON/AST
 
 Usage:
-  lml SOURCE_FILE [options]
+  lml [options] path/to/source/file.ext
 
 Options:
-  --from=TYPE               available: ${Object.keys(TYPES).join(', ')}
-  --to=TYPE                 available: ${Object.keys(TYPES).join(', ')}
+  --from=TYPE               available: {PARSERS}
+  --to=TYPE                 available: {OUTPUTS}
   --indentation=SPEC        spaces or tab - use "s" or "t" (default: "ss")
   --input-indentation=SPEC  forced indentation parsing for LML input (default: automatic recoginition)
   --line-wrap=N             attempt to keep output line length less than this value (default: 120)
   --minify                  minimizing whitepsace in HTML, JSON, and AST outputs
   --no-order-attributes     keep original attribute order
   --out=FILE                save to file (default: output to console)
-  `);
-  process.exit(0);
+`;
+
+/**
+ * CLI request processing logic
+ */
+class CLI {
+  /**
+   * Available output methods on parsers
+   */
+  private readonly outputs = {ast: 'toAST', html: 'toHTML', json: 'toJSON', lml: 'toLML'};
+
+  /**
+   * Available parsers
+   */
+  private readonly parsers = {ast: parseAST, html: parseHTML, json: parseJSON, lml: parseLML};
+
+  /**
+   * CLI request processing
+   * @argument args command line arguments as parsed by minimist
+   */
+  constructor(private readonly args: minimist.ParsedArgs) {
+    if (this.args['h'] || this.args['help']) {
+      this.help();
+    }
+
+    const parser = this.parsers[this.from](this.url, this.source, this.parseConfig);
+    if (parser.error) {
+      this.error(...parser.errors);
+    }
+
+    const result = parser[this.outputs[this.to]](this.outputConfig);
+    const indentation = this.outputConfig.minify ? '' : this.outputConfig.indentation || '  ';
+    const out = typeof result === 'object' ? JSON.stringify(result, null, indentation) : result;
+
+    if (args.out) {
+      try {
+        writeFileSync(args.out, out);
+      } catch (err) {
+        this.error(err);
+      }
+    } else {
+      console.log(out.trim());
+    }
+  }
+
+  /**
+   * Returns parser type based on CLI argument or source file extension
+   */
+  private get from(): Format {
+    const ext = String(this.args.from || String(this.url || '').toLowerCase().split('.').pop()).toLowerCase();
+    const from = <Format>(ext === 'htm' ? 'html' : ext);
+    if (!this.parsers[from]) {
+      this.error(`Could not determine input format. Add option: \`lml ... --from=[${Object.keys(this.parsers).join('|')}]\``);
+    }
+    return from;
+  }
+
+  /**
+   * Output config overrides from CLI arguments
+   */
+  private get outputConfig(): OutputConfig {
+    const outputConfig: OutputConfig = {};
+
+    if (this.args.minify) {
+      if (this.to === 'lml') {
+        this.error('LML output can not take `--minify`');
+      }
+      if (this.args.indentation) {
+        this.error('Can not combine `--minify` and `--indentation`');
+      }
+      outputConfig.indentation = '';
+      outputConfig.minify = true;
+    } else if (this.args.indentation) {
+      outputConfig.indentation = this.args.indentation.toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
+      if (!Parser.validateIndentation(outputConfig.indentation)) {
+        this.error('indentation can only be spaces or one tab');
+      }
+      if (this.to === 'lml' && !outputConfig.indentation) {
+        this.error('indentation must be at least one space for LML');
+      }
+    }
+
+    if (this.args['line-wrap']) {
+      outputConfig.lineWrap = +this.args['line-wrap'];
+    }
+
+    outputConfig.orderAttributes = this.args['order-attributes'] != null ? this.args['order-attributes'] : 'angular';
+
+    return outputConfig;
+  }
+
+  /**
+   * Parse config overrides from CLI arguments
+   */
+  private get parseConfig(): ParseConfig {
+    const parseConfig: ParseConfig = {};
+    if (this.from === 'lml' && this.args['input-indentation']) {
+      parseConfig.indentation = this.args['input-indentation'].toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
+      if (!Parser.validateIndentation(parseConfig.indentation)) {
+        this.error('indentation can only be spaces or one tab');
+      }
+      if (!parseConfig.indentation) {
+        this.error('input indentation must be at least one space or tab for LML');
+      }
+    }
+    return parseConfig;
+  }
+
+  /**
+   * Load file source
+   */
+  private get source(): string {
+    try {
+      return readFileSync(this.url, 'utf8');
+    } catch (err) {
+      this.error(err);
+    }
+  }
+
+  /**
+   * Converstion target format
+   */
+  private get to(): Format {
+    const to = <Format>(String(this.args.to || String(this.args.out || '').toLowerCase().split('.').pop()).toLowerCase() ||
+      (this.from === 'lml' ? 'html' : 'lml'));
+    if (!this.outputs[to]) {
+      this.error(`Unsupported output format: "${to}". Use option: \`lml ... --to=[${Object.keys(this.outputs).join('|')}]\``);
+    }
+    return to;
+  }
+
+  /**
+   * URL based on file argument
+   */
+  private get url(): string {
+    if (!this.args._[0]) {
+      this.error('Source file argument is required');
+    } else if (this.args._.length > 1) {
+      this.error('More than 1 source specified: ' + this.args._.join(', '));
+    }
+    return this.args._[0];
+  }
+
+  /**
+   * Print human readable error(s) and stop running.
+   */
+  private error(...errors: (string | Error | ParseError)[]): void {
+    errors = errors.filter((err) => !!err);
+    if (errors.length) {
+      for (const err of errors) {
+        console.error('[ERROR]', typeof err === 'string' ? err : (String(err)));
+      }
+      console.error('Run `lml --help` for help and options');
+      process.exit(1);
+    }
+  }
+
+  /**
+   * Print help and exit
+   */
+  private help(): void {
+    console.log(help.replace('{PARSERS}', Object.keys(this.parsers).join(', ')).replace('{OUTPUTS}', Object.keys(this.outputs).join(', ')));
+    process.exit(0);
+  }
 }
 
-const url = args._[0];
-if (!url) {
-  error('Source file argument is required');
-}
-if (args._.length > 1) {
-  error('More than 1 source specified: ' + args._.join(', '));
-}
-
-const from = String(args.from || String(url || '').toLowerCase().split('.').pop()).toLowerCase();
-const ParserClass: ParserClass = TYPES[from === 'html' ? 'html' : from];
-if (!ParserClass) {
-  error(`Could not determine input format. Add option: \`lml ... --from=[${Object.keys(TYPES).join('|')}]\``);
-}
-
-const to = String(args.to || String(args.out || '').toLowerCase().split('.').pop()).toLowerCase() || (from === 'lml' ? 'html' : 'lml');
-if (!TYPES.hasOwnProperty(to)) {
-  error(`Unsupported output format: "${to}". Use option: \`lml ... --to=[${Object.keys(TYPES).join('|')}]\``);
-}
-const outputMethod = 'to' + to.toUpperCase();
-
-if (args.minify) {
-  if (to === 'lml') {
-    error('LML output can not take `--minify`');
-  }
-  if (args.indentation) {
-    error('Can not combine `--minify` and `--indentation`');
-  }
-  outputConfig.indentation = '';
-  outputConfig.minify = true;
-} else if (args.indentation) {
-  outputConfig.indentation = args.indentation.toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
-  if (!Parser.validateIndentation(outputConfig.indentation)) {
-    error('indentation can only be spaces or one tab');
-  }
-  if (to === 'lml' && !outputConfig.indentation) {
-    error('indentation must be at least one space for LML');
-  }
-}
-
-if (from === 'lml' && args['input-indentation']) {
-  parseConfig.indentation = args['input-indentation'].toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
-  if (!Parser.validateIndentation(parseConfig.indentation)) {
-    error('indentation can only be spaces or one tab');
-  }
-  if (!parseConfig.indentation) {
-    error('input indentation must be at least one space or tab for LML');
-  }
-}
-
-if (args['line-wrap']) {
-  outputConfig.lineWrap = Math.min(LINE_WRAP_MIN, +args['line-wrap']);
-}
-
-parseConfig.orderAttributes = args['order-attributes'] != null ? args['order-attributes'] : 'angular';
-
-readFile(url, 'utf8', (readErr, src) => {
-  error(readErr);
-
-  const parser = new ParserClass(url, src);
-  if (parser.error) {
-    error(...parser.errors);
-  }
-
-  let out = parser[outputMethod](outputConfig);
-  if (typeof out === 'object') {
-    out = JSON.stringify(out, null, outputConfig.indentation);
-  }
-
-  if (args.out) {
-    writeFile(args.out, out, (writeErr) => {
-      error(writeErr);
-    });
-  } else {
-    console.log(out.trim());
-  }
-});
+// tslint:disable-next-line:no-magic-numbers
+new CLI(minimist(process.argv.slice(2)));

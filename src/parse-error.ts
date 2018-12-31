@@ -29,7 +29,7 @@ export class ParseError {
    * String around the problem-position
    */
   public contextualMessage(): string {
-    const ctx = this.span.start.getContext(ParseError.CONTEXT_MAX_CHAR, ParseError.CONTEXT_MAX_LINES);
+    const ctx = this.span && this.span.start.getContext(ParseError.CONTEXT_MAX_CHAR, ParseError.CONTEXT_MAX_LINES);
     return ctx ? `${this.msg} ("${ctx.before}[${ParseErrorLevel[this.level]} ->]${ctx.after}")` : this.msg;
   }
 
@@ -37,8 +37,8 @@ export class ParseError {
    * Error/warning context and message in string
    */
   public toString(): string {
-    const details = this.span.details ? `, ${this.span.details}` : '';
-    return `${this.contextualMessage()}: ${this.span.start}${details}`;
+    const details = this.span && this.span.details ? `, ${this.span.details}` : '';
+    return `${this.contextualMessage()}: ${this.span && this.span.start || ''}${details}`;
   }
 }
 
@@ -61,7 +61,7 @@ export class InvalidMultilineError extends ParseError {
 }
 
 export class InvalidParentError extends ParseError {
-  constructor(span?: ParseSourceSpan, msg = 'Parent element type can not have children') {
+  constructor(span?: ParseSourceSpan, msg = 'Containing element can not have children') {
     super(span, msg);
   }
 }

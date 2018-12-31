@@ -5,7 +5,7 @@ const TRAILING_EMPTY_LINES_RX = /\n\s*$/;
 
 /**
  * Source file data
- * Resembles the @angular/compiler `ParseSourceFile` class with additional position seeking methods
+ * Somewhat resembles the @angular/compiler `ParseSourceFile` class with additional position seeking methods
  * {@link https://github.com/angular/angular/blob/cf0968f98e844043a0f6c2548201f3c0dfd329a7/packages/compiler/src/parse_util.ts}
  */
 export class ParseSourceFile {
@@ -20,28 +20,6 @@ export class ParseSourceFile {
   public readonly lines: string[];
 
   /**
-   * Indentation for the entire block. Will be disregarded in hierarchy.
-   */
-  public blockIndentation: number;
-
-  /**
-   * Id the number of initial whitespaces used in every line
-   */
-  public static blockIndentation(lines: string[]): number {
-    let blockIndentation: number;
-    lines.forEach((line) => {
-      if (blockIndentation !== 0 && line.trim()) {
-        const indentation = line.match(INDENTATION_REGEX)[0].length;
-
-        if (blockIndentation == null || indentation < blockIndentation) {
-          blockIndentation = indentation;
-        }
-      }
-    });
-    return blockIndentation || 0;
-  }
-
-  /**
    * Initialize source file. Will cache line offsets.
    */
   constructor(public readonly content: string, public readonly url: string) {
@@ -49,7 +27,6 @@ export class ParseSourceFile {
 
     let offset = 0;
     this.lines = this.content.split('\n');
-    this.blockIndentation = ParseSourceFile.blockIndentation(this.lines);
     this.lines.forEach((line) => {
       this.lineOffsets.push(offset);
       offset += line.length + 1;

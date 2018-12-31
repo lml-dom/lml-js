@@ -54,40 +54,107 @@ Translates to
 ## CLI
 ### Install globally
 `npm install --global lml`
+
 ### Usage
-Converts HTML/LML to HTML/JSON/LML on the command line
-`lml [--from=html|lml] [--to=html|lml|json] [--minify] [--indentation=INDENT_SPEC] [--out=outfile] source.html`
-#### Notes
-- `--indentation` allows for spaces or tab. Defaults to 2 spaces (`"  "`). You may use `s` or `t` to keep your CLI argument sane
-- `--minify` only works with HTML and JSON outputs and is mutually exclusive with `--indentation`
+`lml [options] path/to/source/file.ext`
+
+#### Options
+  `--from=TYPE`               available: `ast`, `html`, `json`, `lml`
+  `--to=TYPE`                 available: `ast`, `html`, `json`, `lml`
+  `--indentation=SPEC`        spaces or tab - use `s` or `t` (default: `ss`)
+  `--input-indentation=SPEC`  forced indentation parsing for LML input (default: automatic recoginition)
+  `--line-wrap=N`             attempt to keep output line length less than this value (default: 120)
+  `--minify`                  minimizing whitepsace in HTML, JSON, and AST outputs
+  `--no-order-attributes`     keep original attribute order
+  `--out=FILE`                save to file (default: output to console)
 
 ## Programmatical use
 ### Install for your project
 `npm install lml --save`
 ### Parsers produce AST and convert
-Use the `HtmlParser` or `LmlParser` to parse the DOM.
-JavaScript:
+
+#### JavaScript example
 ```javascript
 // convert HTML to LML
-const HtmlParser = require('lml').HtmlParser;
+const parseHTML = require('lml').parseHTML;
 
-const parser = new HtmlParser(filePath, htmlString);
+const parser = parseHTML(filePath, htmlString);
 if (parser.error) {
   console.error.apply(null, ['Parsing failed:'].concat(parser.errors));
+} else {
+  console.log(parser.toLML());
+}
+```
+
+#### TypeScript example
+```typescript
+// convert LML to HTML
+import { parseLML } from 'lml';
+
+const parser = parseLML(filePath, lmlString);
+if (parser.error) {
+  console.error('Parsing failed:', ...parser.errors);
 } else {
   console.log(parser.toHTML());
 }
 ```
 
-TypeScript:
-```typescript
-// convert LML to HTML
-import { LmlParser } from 'lml';
+#### Parsers
+Parser functions are exposed with the same signiture, and the returned object has the same interface:
+`parseAST(url: string, source: string | ASTModel[], parseConfig?: ParseConfig) => Parser`
+`parseHTML(url: string, source: string, parseConfig?: ParseConfig) => Parser`
+`parseJSON(url: string, source: string | JSONModel[], parseConfig?: ParseConfig) => Parser`
+`parseLML(url: string, source: string, parseConfig?: ParseConfig) => Parser`
 
-const parser = new LmlParser(filePath, lmlString);
-if (parser.error) {
-  console.error('Parsing failed:', ...parser.errors);
-} else {
-  console.log(parser.toHTML());
+Parser interface:
+```typescript
+interface Parser {
+  errors: ParseError[];
+  error: ParseError; // getter pointing at the first error in errors. Indicates that there is at least one error
+  toAST(config?: OutputConfig): ASTModel[];
+  toHTML(config?: OutputConfig): string;
+  toJSON(config?: OutputConfig): JSONModel[];
+  toLML(config?: OutputConfig): string;
+}
+```
+
+#### Configurations
+```typescript
+interface ParseConfig {
+  indentation?: string; // for parsing LML, if autodetection is not adequate
+  stopOnErrorCount?: number; // if number of errors becomes higher than this number, parsing will stop. Defaults to 20
+}
+
+interface OutputConfig {
+  indentation?: string;
+  lineWrap?: number;
+  minify?: boolean;
+  orderAttributes?: 'ascii' | 'natural' | 'angular'; // angular order means: <tag *ngXxx="x" any="x" [other]="x" prop="x" [(banana)]="box" (event)="e()" (handler)="e()" >
+}
+```
+
+#### AST Model
+AST model is used by a variety of DOM parsers, like https://astexplorer.net/
+```typescript
+interface ASTModel {
+  type: 'cdata' | 'comment' | 'directive' | 'script' | 'style' | 'tag' | 'text';
+  name?: string; // element (e.g. tag) name
+  data?: string; // value of comment, directive, and text
+  attribs?: {[name: string]: string};
+  children?: ASTModel[];
+  startIndex?: number;
+  endIndex?: number;
+}
+```
+
+#### JSON Model
+The native structure used by these libraries
+```typescript
+interface JSONModel {
+  type: 'cdata' | 'comment' | 'directive' | 'element' | 'text';
+  name?: string; // element name
+  data?: string; // value of comment, directive, and text
+  attributes?: {name: string; value?: string}[];
+  children?: JSONModel[];
 }
 ```

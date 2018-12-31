@@ -1,181 +1,192 @@
-import { CData } from './ast/cdata';
-import { Comment } from './ast/comment';
-import { Directive } from './ast/directive';
-import { Element } from './ast/element';
-import { Node } from './ast/node';
-import { CHARACTER_SAFE_ELEMENTS, TEXT_BLOCK_ELEMENTS, Text } from './ast/text';
-import { defaultParseConfig } from './config';
-import { orderAttributes } from './order-attributes';
+import { LML_MULTILINE_CONCATENATOR, LML_SIGN, TEXT_BLOCK_ELEMENTS } from './const';
+import { DOMNode, DOMNodeType } from './dom-node';
 import { InconsistentIndentationError, InvalidMultilineError, InvalidParentError, InvalidTagNameError, MisplacedDirectiveError,
-  MultilineAttributeIndentationError, TooMuchIndentationError } from './parse-error';
+  TooMuchIndentationError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { INDENTATION_REGEX } from './parse-source-file';
-import { Parser } from './parser';
+import { StringParser } from './string-parser';
 
+const PARENT_TYPES = ['cdata', 'element'];
 const SPC_AND_TAB_RX = /^[ \t]*/g;
 const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 
 /**
- * Parses LML to AST
+ * Parses LML string to DOMNode[]
  */
-export class LmlParser extends Parser {
+export class LMLParser extends StringParser {
   /**
-   * Instantiation triggers parsing
-   * @argument url Source file path
-   * @argument src LML source string
-   * @argument config Optional input parsing configuration
+   * BLock indentation chache
    */
-  constructor(url: string, src: string, config = defaultParseConfig()) {
-    super();
-    this.preProcess(url, src, config);
-    this.parse();
-  }
+  private blockIndentation: number;
 
   /**
    * Automatically ID indentation pattern in the source file
    */
-  private idIndentation(): void {
-    if (!this.config.indentation) {
-      // ID indentation pattern
-      for (const line of this.source.lines) {
-        if (line.trim()) {
-          const lineIndent = line.substr(this.source.blockIndentation).match(INDENTATION_REGEX)[0];
-          if (lineIndent.length) {
-            this.config.indentation = lineIndent;
-            break;
+  private idIndentation(): string {
+    for (const line of this.source.lines) {
+      if (line.trim()) {
+        const lineIndent = line.substr(this.blockIndentation).match(INDENTATION_REGEX)[0];
+        if (lineIndent.length) {
+          return lineIndent;
+        }
+      }
+    }
+    return '  ';
+  }
+
+  protected parse(): void {
+    this._levels = [];
+    const bi = this.blockIndentation = this.idBlockIndentation();
+    const indentation = this.config.indentation = this.config.indentation || this.idIndentation();
+    const indentationLen = indentation.length;
+    const indent_rx = indentation[0] === '\t' ? /^\t*/ : /^ */;
+    const lines = this.source.lines;
+    const linesLen = lines.length;
+    for (let i = 0; i < linesLen; i++) {
+      const line = lines[i];
+      if (!line.trim()) {
+        continue;
+      }
+      const indent = line.substr(bi).match(SPC_AND_TAB_RX)[0];
+      const spaces = indent.length;
+      let level = spaces / indentationLen;
+      const lmlSign = line.substr(bi + spaces, 1);
+      const type = <DOMNodeType>LML_SIGN[lmlSign] || 'element';
+
+      if (!Number.isInteger(level)) {
+        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces)));
+        level = Math.ceil(level % indentationLen);
+      }
+      if (this._last && this._last.level < level - 1) {
+        this.errors.push(new TooMuchIndentationError(this.parseSpan(i, bi + this._levels.length * indentationLen, i, bi + spaces)));
+        level = this._last.level + 1;
+      }
+      if (this._last && level > this._last.level && (!PARENT_TYPES.includes(this._last.type) ||
+        (this._last.type === 'element' && DOMNode.voidTags.includes(this._last.name)))
+      ) {
+        if (this.errors[this.errors.length - 1] instanceof InvalidParentError) {
+          this.errors[this.errors.length - 1].span.end = new ParseLocation(this.source, null, i, line.length);
+        } else {
+          this.errors.push(new InvalidParentError(this.parseSpan(i, bi + spaces, i, line.length)));
+        }
+        continue;
+      }
+
+      const node = this.add(type, level, this.parseSpan(i, bi + spaces, i, line.length));
+
+      if (lmlSign === LML_MULTILINE_CONCATENATOR) {
+        this.errors.push(new InvalidMultilineError(this.parseSpan(i, bi + spaces, i, bi + spaces + 1)));
+        continue;
+      }
+      if (indent.replace(indent_rx, '').length) {
+        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + indent.length)));
+      }
+
+      switch (type) {
+        case 'cdata': {
+          const text = this.add('text', level + 1, this.parseSpan(i, bi + spaces, i, line.length));
+          this.textBlockData(text, i, indent, bi, 1, false);
+          text.parent = (node.name === 'textarea' && text.data) || text.data.trim() ? text.parent : null;
+          break;
+        }
+
+        case 'comment':
+        case 'text': {
+          this.textBlockData(node, i, indent, bi, 1);
+          break;
+        }
+
+        case 'directive': {
+          if (bi || spaces) {
+            this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, bi + spaces)));
+          } else if (this.rootNodes.length > 1) {
+            this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, line.length)));
+          } else {
+            node.data = line;
+          }
+          break;
+        }
+
+        case 'element': {
+          const parsed = this.parseTag(line.substr(bi + spaces), i, bi + spaces, true);
+          node.name = parsed.attrs.shift().name;
+          if (!node.name.match(TAGNAME_RX)) {
+            this.errors.push(new InvalidTagNameError(this.parseSpan(i, bi + spaces, i, bi + spaces + node.name.length)));
+          }
+          node.attributes.push(...parsed.attrs);
+          const childIndent = indent + indentation;
+          const childIndentLen = childIndent.length;
+          if (parsed.text) {
+            node.sourceSpan.end = new ParseLocation(this.source, parsed.text.sourceSpan.start.offset - 1);
+            if (node.name === 'textarea' || parsed.text.data.trim()) {
+              parsed.text.parent = node;
+            }
+          } else {
+            let trimmed: string;
+            while (lines[i + 1] != null && (!(trimmed = lines[i + 1].trim()) || trimmed.substr(0, 1) === LML_MULTILINE_CONCATENATOR)) {
+              i++;
+              const pos = lines[i].indexOf(LML_MULTILINE_CONCATENATOR);
+              if (pos !== bi + childIndentLen) {
+                this.errors.push(new InvalidMultilineError(this.parseSpan(i, 0, i, pos)));
+              }
+              const {text, attrs} = this.parseTag(trimmed.substr(1), i, pos + 1, true);
+              node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+              lines[i] = '';
+              node.attributes.push(...attrs);
+              if (text) {
+                node.sourceSpan.end = new ParseLocation(this.source, text.sourceSpan.start.offset - 1);
+                if (node.name === 'textarea' || text.data.trim()) {
+                  text.parent = node;
+                }
+                break;
+              }
+            }
+          }
+          if (TEXT_BLOCK_ELEMENTS.includes(node.name) && lines[i + 1] != null &&
+            (!lines[i + 1].trim() || lines[i + 1].substr(bi, childIndentLen) === childIndent)
+          ) {
+            const text = this.add('text', level + 1, this.parseSpan(i + 1, bi + childIndentLen, i + 1, lines[i + 1].length));
+            this.textBlockData(text, i + 1, childIndent, bi, 0, node.name !== 'textarea', true);
+            text.parent = (node.name === 'textarea' && text.data) || text.data.trim() ? text.parent : null;
           }
         }
       }
-      this.config.indentation = this.config.indentation || '  ';
     }
+
+    this.postProcess();
   }
 
   /**
-   * Process input
+   * Fetches data for text block (like cdata, comment, textarea, script, style).
+   * Adds upcoming children lines to .data property and empties those lines (so that they don't get parsed as tags later)
+   * Also updates sourceSpan (assumes first line was marked)
+   * @argument node owner of the block
+   * @argument i line number in source
+   * @argument indent owner node indentation
+   * @argument bi block indentation (the spacing that all lines have in the LML file)
+   * @argument skipFirst number of characters to skip (useful to skip block-opening LML signs like ; or $ or #)
+   * @argument trim indicates that data is not supposed to be character safe, so we can streamline characters
+   * @argument sameLevel indicates that block indentation equals to child indentation (e.g. for textarea/script/style text block)
    */
-  private parse(): void {
-    const bi = this.source.blockIndentation;
+  private textBlockData(node: DOMNode, i: number, indent: string, bi: number, skipFirst: number, trim = true, sameLevel = false): void {
     const lines = this.source.lines;
-    const len = lines.length;
-    let i: number;
-    let line: string;
-    let node: Node;
-    let spaces: number;
-    let trimmed: string;
-
-    this.idIndentation();
-    const indentation = this.config.indentation;
-    const indentationLen = indentation.length;
-
-    const directiveMultilineBlock = (): void => {
-      const expectedTabulation = lines[i].substr(bi, spaces) + indentation;
-      while (i < len - 1 && (!lines[i + 1].trim() || lines[i + 1].substr(bi, spaces + indentationLen) === expectedTabulation)) {
-        i++;
-        if (node.sourceSpan) {
-          node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
-        }
-        (<Comment | Text>node).data += '\n' + lines[i].substr(bi + spaces + indentationLen);
-      }
-    };
-
-    const parseElement = (): void => {
-      let parsed = this.parseTag(trimmed, i, spaces, true);
-      node = new Element(parsed.attrs.shift().name, parsed.attrs, [], this.parseSpan(i, bi + spaces, i, bi + spaces + trimmed.length));
-      if (!(<Element>node).name.match(TAGNAME_RX)) {
-        this.errors.push(new InvalidTagNameError(this.parseSpan(i, bi + spaces, i, bi + spaces + (<Element>node).name.length)));
-      }
-
-      // multiline attributes
-      while (i < len - 1 && (!(trimmed = lines[i + 1].trim()) || trimmed.substr(0, 1) === '\\')) {
-        i++;
-        if (trimmed) {
-          if (lines[i].substr(bi, spaces + indentationLen + 1) !== `${lines[i - 1].substr(bi, spaces)}${indentation}\\`) {
-            const pos = lines[i].indexOf('\\');
-            this.errors.push(new MultilineAttributeIndentationError(this.parseSpan(i, pos, i, pos + 1)));
-          }
-          if (node.sourceSpan) {
-            node.sourceSpan.end = new ParseLocation(this.source, null, i, bi + spaces + trimmed.length);
-          }
-          parsed = this.parseTag(trimmed.substr(1), i, bi + spaces + indentationLen + 1, true);
-          (<Element>node).attrs.push(...parsed.attrs);
-        }
-      }
-      orderAttributes((<Element>node).attrs, this.config);
-
-      if (parsed.text) {
-        parsed.text.parent = <Element>node;
-      }
-
-      // script or style block contents
-      if (TEXT_BLOCK_ELEMENTS.includes((<Element>node).name)) {
-        const startLine = i + 1;
-        const contents: string[] = [];
-        const expectedTabulation = lines[i].substr(bi, spaces) + indentation;
-        while (i < len - 1 && (!lines[i + 1].trim() || lines[i + 1].substr(bi, spaces + indentationLen) === expectedTabulation)) {
-          i++;
-          contents.push(lines[i].substr(bi + spaces + indentationLen));
-        }
-        let content = contents.join('\n');
-        if (!CHARACTER_SAFE_ELEMENTS.includes((<Element>node).name)) {
-          content = content.trim();
-        }
-        if (content) {
-          (new Text(content, this.parseSpan(startLine, 0, i, lines[i].length))).parent = <Element>node;
-        }
-      }
-    };
-
-    const indent_rx = indentation[0] === '\t' ? /^\t*/ : /^ */;
-    for (i = 0; i < len; i++) {
-      line = lines[i];
-      trimmed = line.trim();
-      if (trimmed) {
-        const lineIndent = line.substr(bi).match(SPC_AND_TAB_RX)[0];
-        spaces = lineIndent.length;
-        const level = spaces / indentationLen;
-        const directive = trimmed.substr(0, 1);
-        if (!Number.isInteger(level)) {
-          this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces)));
-        } else if (!this._levels[level - 1]) {
-          this.errors.push(new TooMuchIndentationError(this.parseSpan(i, this._levels.length * indentationLen, i, spaces)));
-        } else if (!this._levels[level - 1]['children']) {
-          this.errors.push(new InvalidParentError(this.parseSpan(i, bi + spaces, i, line.length)));
-        } else if (directive === '\\') {
-          this.errors.push(new InvalidMultilineError(this.parseSpan(i, bi + spaces, i, bi + spaces + 1)));
-        } else {
-          if (lineIndent.replace(indent_rx, '').length) {
-            this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + lineIndent.length)));
-          }
-
-          if (directive === CData.LML_DIRECTIVE) {
-            node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces + 1, i, line.length));
-            const cdata = new CData(this.parseSpan(i, bi + spaces, i, line.length), <Text>node);
-            directiveMultilineBlock();
-            node = cdata;
-          } else if (directive === Comment.LML_DIRECTIVE) {
-            node = new Comment(trimmed.substr(1), this.parseSpan(i, bi + spaces, i, line.length));
-            directiveMultilineBlock();
-            (<Comment>node).data = (<Comment>node).data.trim();
-          } else if (directive === Directive.LML_DIRECTIVE) {
-            if (bi || spaces) {
-              this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, bi + spaces)));
-            } else if (this.rootNodes.length) {
-              this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, line.length)));
-            }
-            node = new Directive(trimmed.trim(), this.parseSpan(i, 0, i, line.length));
-          } else if (directive === Text.LML_DIRECTIVE) {
-            node = new Text(line.substr(bi + spaces + 1), this.parseSpan(i, bi + spaces, i, line.length));
-            directiveMultilineBlock();
-          } else { // Element
-            parseElement();
-          }
-        }
-
-        if (this.stopParse) {
-          break;
-        }
-        this.add(node, level);
-      }
+    const childIndent = indent + (sameLevel ? '' : this.config.indentation);
+    const childIndentLen = childIndent.length;
+    node.data = lines[i].substr(bi + indent.length + (skipFirst ? 1 : 0));
+    if (trim) {
+      node.data = node.data.trim();
+    }
+    if (sameLevel) {
+      lines[i] = '';
+    }
+    for (i++; lines[i] != null && (!lines[i].trim() || lines[i].substr(bi, childIndentLen) === childIndent); i++) {
+      const line = lines[i].substr(bi + childIndentLen);
+      node.data += '\n' + (trim ? line.trim() : line);
+      node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+      lines[i] = '';
+    }
+    if (trim) {
+      node.data = node.data.trim();
     }
   }
 }

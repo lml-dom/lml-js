@@ -1,9 +1,6 @@
 import { readFileSync } from 'fs';
 
-import { AstParser } from '../src/ast-parser';
-import { HtmlParser } from '../src/html-parser';
-import { JsonParser } from '../src/json-parser';
-import { LmlParser } from '../src/lml-parser';
+import { parseAST, parseHTML, parseJSON, parseLML } from '../index';
 
 import { strDiff } from './helpers/str-diff';
 
@@ -12,30 +9,31 @@ const QUOTE_LEN = 80;
 describe('Parser', () => {
   const html = readFileSync(__dirname + '/rsc/test1.html', 'utf8');
 
-  const lml1 = (new HtmlParser('test.html', html)).toLML();
-  const html1 = (new LmlParser('1.lml', lml1)).toHTML();
-  const lml2 = (new HtmlParser('1.html', html1)).toLML();
-  const html2 = (new LmlParser('2.lml', lml2)).toHTML();
-  const ast1 = (new HtmlParser('2.html', html2)).toAST();
-  const json1 = (new AstParser('1.ast', ast1)).toJSON();
-  const html3 = (new JsonParser('1.json', json1)).toHTML();
-  const json2 = (new HtmlParser('3.html', html3)).toJSON();
-  const ast2 = (new JsonParser('2.json', JSON.stringify(json2))).toAST();
-  const lml3 = (new AstParser('2.ast', JSON.stringify(ast2))).toString();
+  const parser1 = parseHTML('test.html', html);
+  const lml1 = parser1.toLML();
+  const html2 = parseLML('1.lml', lml1).toHTML();
+  const lml3 = parseHTML('2.html', html2).toLML();
+  const html4 = parseLML('3.lml', lml3).toHTML();
+  const ast5 = parseHTML('4.html', html4).toAST();
+  const json6 = parseAST('5.ast', ast5).toJSON();
+  const html7 = parseJSON('6.json', json6).toHTML();
+  const json8 = parseHTML('7.html', html7).toJSON();
+  const ast9 = parseJSON('8.json', json8).toAST();
+  const lml10 = parseAST('9.ast', JSON.stringify(ast9)).toString();
 
   it('works with consistent outputs', () => {
-    let d = strDiff(lml1, lml2);
+    let d = strDiff(lml1, lml3);
     if (d > -1) {
-      console.log('lml diff', JSON.stringify(lml1.substr(d, QUOTE_LEN)), 'VS', JSON.stringify(lml2.substr(d, QUOTE_LEN)));
+      console.log('lml diff', JSON.stringify(lml1.substr(d, QUOTE_LEN)), 'VS', JSON.stringify(lml3.substr(d, QUOTE_LEN)));
     }
-    expect(lml1).toBe(lml2, 'LML outputs');
+    expect(lml1).toBe(lml3, 'LML outputs');
 
-    d = strDiff(html1, html2);
+    d = strDiff(html2, html4);
     if (d > -1) {
-      console.log('html diff', JSON.stringify(html1.substr(d, QUOTE_LEN)), 'VS', JSON.stringify(html2.substr(d, QUOTE_LEN)));
+      console.log('html diff', JSON.stringify(html2.substr(d, QUOTE_LEN)), 'VS', JSON.stringify(html4.substr(d, QUOTE_LEN)));
     }
-    expect(html1).toBe(html2, 'HTML outputs');
+    expect(html2).toBe(html4, 'HTML outputs');
 
-    expect(lml2).toBe(lml3, 'After AST and JSON');
+    expect(lml3).toBe(lml10, 'After AST and JSON');
   });
 });

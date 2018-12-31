@@ -3,13 +3,14 @@
 import { InconsistentIndentationError, MisplacedDirectiveError, MissingAttributeNameError,
   MissingAttributeValueError, TooMuchIndentationError, UnclosedQuoteSignError, UnexpectedQuoteSignError } from '../src/parse-error';
 
-import { LmlParser } from '../src/lml-parser';
+import { parseLML } from '../index';
+import { LMLParser } from '../src/lml-parser';
 
 /**
  * Shorthand to create a parser object from LML string
  */
-function parse(lml: string): LmlParser {
-  return new LmlParser('test.lml', lml);
+function parse(lml: string): LMLParser {
+  return parseLML('test.lml', lml);
 }
 
 describe('LmlParser', () => {
@@ -124,10 +125,10 @@ describe('LmlParser', () => {
       expect(json[0].children[0]['data']).toBe('hello');
     });
 
-    it('is parsed as multiline block and retains extra spaces', () => {
+    it('is parsed as multiline block, trims', () => {
       const json = parse(`div\n\t; hello  \n\t\t world`).toJSON();
       expect(json[0].children[0]['type']).toBe('text');
-      expect(json[0].children[0]['data']).toBe('hello  \n world');
+      expect(json[0].children[0]['data']).toBe('hello\nworld');
     });
 
     it('is found after tag as child, and is not multiline', () => {
@@ -198,7 +199,7 @@ describe('LmlParser', () => {
 
       describe('ordering', () => {
         it('uses ASCII order', () => {
-          const json = parse(`div\n\tspan x Y z a`).toJSON({orderAttributes: true});
+          const json = parse(`div\n\tspan x Y z a`).toJSON({orderAttributes: 'ascii'});
           expect(json[0]['children'][0].name).toBe('span');
           expect(json[0]['children'][0].attributes.length).toBe(4);
           expect(json[0]['children'][0].attributes[0].name).toBe('Y');
@@ -272,7 +273,7 @@ describe('LmlParser', () => {
           expect(json[0]['children'][0].attributes[1].value).toBeUndefined();
           expect(json[0]['children'][0].attributes[2].name).toBe('class');
           expect(json[0]['children'][0].attributes[3].name).toBe('bb');
-          expect(json[0]['children'][0].attributes[3].value).toBe('');
+          expect(json[0]['children'][0].attributes[3].value).toBeUndefined();
           expect(parser.error).toBeTruthy();
           expect(parser.errors.length).toBe(2);
           expect(parser.errors[0] instanceof MissingAttributeValueError).toBe(true);
