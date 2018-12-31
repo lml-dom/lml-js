@@ -1,6 +1,6 @@
 // tslint:disable:max-file-line-count no-magic-numbers
 
-import { InconsistentIndentationError, MisplacedDirectiveError, MissingAttributeNameError,
+import { InconsistentIndentationCharactersError, MisplacedDirectiveError, MissingAttributeNameError,
   MissingAttributeValueError, TooMuchIndentationError, UnclosedQuoteSignError, UnexpectedQuoteSignError } from '../src/parse-error';
 
 import { parseLML } from '../index';
@@ -31,7 +31,7 @@ describe('LmlParser', () => {
 
     it('catches inconsistency error', () => {
       const parser = parse(`div\n span\n\t ; hello\ndiv`);
-      expect(parser.error instanceof InconsistentIndentationError).toBe(true);
+      expect(parser.error instanceof InconsistentIndentationCharactersError).toBe(true);
       expect(parser.errors.length).toBe(1);
     });
 

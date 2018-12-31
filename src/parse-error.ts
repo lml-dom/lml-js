@@ -49,6 +49,12 @@ export class HtmlParseError extends ParseError {
 }
 
 export class InconsistentIndentationError extends ParseError {
+  constructor(span?: ParseSourceSpan, msg = 'Inconsistent indentation step') {
+    super(span, msg);
+  }
+}
+
+export class InconsistentIndentationCharactersError extends ParseError {
   constructor(span?: ParseSourceSpan, msg = 'Inconsistent indentation: a mix of space and tab characters') {
     super(span, msg);
   }

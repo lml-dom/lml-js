@@ -1,7 +1,7 @@
 import { LML_MULTILINE_CONCATENATOR, LML_SIGN, TEXT_BLOCK_ELEMENTS } from './const';
 import { DOMNode, DOMNodeType } from './dom-node';
-import { InconsistentIndentationError, InvalidMultilineError, InvalidParentError, InvalidTagNameError, MisplacedDirectiveError,
-  TooMuchIndentationError } from './parse-error';
+import { InconsistentIndentationCharactersError, InconsistentIndentationError, InvalidMultilineError, InvalidParentError,
+  InvalidTagNameError, MisplacedDirectiveError, TooMuchIndentationError } from './parse-error';
 import { ParseLocation } from './parse-location';
 import { INDENTATION_REGEX } from './parse-source-file';
 import { StringParser } from './string-parser';
@@ -54,7 +54,8 @@ export class LMLParser extends StringParser {
       const type = <DOMNodeType>LML_SIGN[lmlSign] || 'element';
 
       if (!Number.isInteger(level)) {
-        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces)));
+        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces),
+          `Inconsistent indentation step. Should be an increment of ${indentationLen} ${indent[0] === '\t' ? 'tabs' : 'spaces'}`));
         level = Math.ceil(level % indentationLen);
       }
       if (this._last && this._last.level < level - 1) {
@@ -79,7 +80,7 @@ export class LMLParser extends StringParser {
         continue;
       }
       if (indent.replace(indent_rx, '').length) {
-        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + indent.length)));
+        this.errors.push(new InconsistentIndentationCharactersError(this.parseSpan(i, bi, i, bi + indent.length)));
       }
 
       switch (type) {
