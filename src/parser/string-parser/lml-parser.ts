@@ -1,14 +1,14 @@
-import { LML_MULTILINE_CONCATENATOR, LML_SIGN, TEXT_BLOCK_ELEMENTS } from './const';
-import { DOMNode, DOMNodeType } from './dom-node';
-import { InconsistentIndentationCharactersError, InconsistentIndentationError, InvalidMultilineError, InvalidParentError,
-  InvalidTagNameError, MisplacedDirectiveError, TooMuchIndentationError } from './parse-error';
-import { ParseLocation } from './parse-location';
-import { INDENTATION_REGEX } from './parse-source-file';
-import { StringParser } from './string-parser';
+import { LML_MULTILINE_CONCATENATOR, LML_SIGN, TEXT_BLOCK_ELEMENTS } from '../../const';
+import { DOMNode, DOMNodeType } from '../../dom-node';
+import { validateIndentationConfig } from '../../validate-indentation-config';
+import { InvalidConfigurationError } from '../parse-error';
+import { ParseLocation } from '../parse-location';
+import { INDENTATION_REGEX } from '../parse-source-file';
+import { InconsistentIndentationCharactersWarning, InconsistentIndentationWarning, InvalidMultilineAttributeWarning,
+  MisplacedDirectiveWarning, MultilineAttributeIndentationWarning, TooMuchIndentationWarning } from '../parse-warning';
+import { StringParser } from '../string-parser';
 
-const PARENT_TYPES = ['cdata', 'element'];
 const SPC_AND_TAB_RX = /^[ \t]*/g;
-const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 
 /**
  * Parses LML string to DOMNode[]
@@ -38,6 +38,10 @@ export class LMLParser extends StringParser {
     this._levels = [];
     const bi = this.blockIndentation = this.idBlockIndentation();
     const indentation = this.config.indentation = this.config.indentation || this.idIndentation();
+    if (!validateIndentationConfig(indentation)) {
+      throw new InvalidConfigurationError('Invalid parsing indentation');
+    }
+
     const indentationLen = indentation.length;
     const indent_rx = indentation[0] === '\t' ? /^\t*/ : /^ */;
     const lines = this.source.lines;
@@ -54,40 +58,27 @@ export class LMLParser extends StringParser {
       const type = <DOMNodeType>LML_SIGN[lmlSign] || 'element';
 
       if (!Number.isInteger(level)) {
-        this.errors.push(new InconsistentIndentationError(this.parseSpan(i, bi, i, bi + spaces),
-          `Inconsistent indentation step. Should be an increment of ${indentationLen} ${indent[0] === '\t' ? 'tabs' : 'spaces'}`));
+        this.errors.push(new InconsistentIndentationWarning(this.parseSpan(i, bi, i, bi + spaces)));
         level = Math.ceil(level % indentationLen);
       }
       if (this._last && this._last.level < level - 1) {
-        this.errors.push(new TooMuchIndentationError(this.parseSpan(i, bi + this._levels.length * indentationLen, i, bi + spaces)));
+        this.errors.push(new TooMuchIndentationWarning(this.parseSpan(i, bi + this._levels.length * indentationLen, i, bi + spaces)));
         level = this._last.level + 1;
       }
-      if (this._last && level > this._last.level && (!PARENT_TYPES.includes(this._last.type) ||
-        (this._last.type === 'element' && DOMNode.voidTags.includes(this._last.name)))
-      ) {
-        if (this.errors[this.errors.length - 1] instanceof InvalidParentError) {
-          this.errors[this.errors.length - 1].span.end = new ParseLocation(this.source, null, i, line.length);
-        } else {
-          this.errors.push(new InvalidParentError(this.parseSpan(i, bi + spaces, i, line.length)));
-        }
+      if (lmlSign === LML_MULTILINE_CONCATENATOR) {
+        this.errors.push(new InvalidMultilineAttributeWarning(this.parseSpan(i, bi + spaces, i, bi + spaces + 1)));
         continue;
       }
 
       const node = this.add(type, level, this.parseSpan(i, bi + spaces, i, line.length));
 
-      if (lmlSign === LML_MULTILINE_CONCATENATOR) {
-        this.errors.push(new InvalidMultilineError(this.parseSpan(i, bi + spaces, i, bi + spaces + 1)));
-        continue;
-      }
       if (indent.replace(indent_rx, '').length) {
-        this.errors.push(new InconsistentIndentationCharactersError(this.parseSpan(i, bi, i, bi + indent.length)));
+        this.errors.push(new InconsistentIndentationCharactersWarning(this.parseSpan(i, bi, i, bi + indent.length)));
       }
 
       switch (type) {
         case 'cdata': {
-          const text = this.add('text', level + 1, this.parseSpan(i, bi + spaces, i, line.length));
-          this.textBlockData(text, i, indent, bi, 1, false);
-          text.parent = (node.name === 'textarea' && text.data) || text.data.trim() ? text.parent : null;
+          this.textBlockData(this.add('text', level + 1, this.parseSpan(i, bi + spaces, i, line.length)), i, indent, bi, 1, false);
           break;
         }
 
@@ -99,9 +90,9 @@ export class LMLParser extends StringParser {
 
         case 'directive': {
           if (bi || spaces) {
-            this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, bi + spaces)));
+            this.errors.push(new MisplacedDirectiveWarning(this.parseSpan(i, 0, i, bi + spaces)));
           } else if (this.rootNodes.length > 1) {
-            this.errors.push(new MisplacedDirectiveError(this.parseSpan(i, 0, i, line.length)));
+            this.errors.push(new MisplacedDirectiveWarning(this.parseSpan(i, 0, i, line.length)));
           } else {
             node.data = line;
           }
@@ -109,11 +100,8 @@ export class LMLParser extends StringParser {
         }
 
         case 'element': {
-          const parsed = this.parseTag(line.substr(bi + spaces), i, bi + spaces, true);
+          const parsed = this.parseTag(this.parseSpan(i, bi + spaces, i, line.length), true);
           node.name = parsed.attrs.shift().name;
-          if (!node.name.match(TAGNAME_RX)) {
-            this.errors.push(new InvalidTagNameError(this.parseSpan(i, bi + spaces, i, bi + spaces + node.name.length)));
-          }
           node.attributes.push(...parsed.attrs);
           const childIndent = indent + indentation;
           const childIndentLen = childIndent.length;
@@ -126,12 +114,15 @@ export class LMLParser extends StringParser {
             let trimmed: string;
             while (lines[i + 1] != null && (!(trimmed = lines[i + 1].trim()) || trimmed.substr(0, 1) === LML_MULTILINE_CONCATENATOR)) {
               i++;
+              if (!trimmed) {
+                continue;
+              }
               const pos = lines[i].indexOf(LML_MULTILINE_CONCATENATOR);
               if (pos !== bi + childIndentLen) {
-                this.errors.push(new InvalidMultilineError(this.parseSpan(i, 0, i, pos)));
+                this.errors.push(new MultilineAttributeIndentationWarning(this.parseSpan(i, 0, i, pos + 1)));
               }
-              const {text, attrs} = this.parseTag(trimmed.substr(1), i, pos + 1, true);
-              node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+              const {text, attrs} = this.parseTag(this.parseSpan(i, pos + 1, i, lines[i].length), true);
+              node.sourceSpan.end = new ParseLocation(this.source, i, lines[i].length);
               lines[i] = '';
               node.attributes.push(...attrs);
               if (text) {
@@ -148,7 +139,6 @@ export class LMLParser extends StringParser {
           ) {
             const text = this.add('text', level + 1, this.parseSpan(i + 1, bi + childIndentLen, i + 1, lines[i + 1].length));
             this.textBlockData(text, i + 1, childIndent, bi, 0, node.name !== 'textarea', true);
-            text.parent = (node.name === 'textarea' && text.data) || text.data.trim() ? text.parent : null;
           }
         }
       }
@@ -183,7 +173,7 @@ export class LMLParser extends StringParser {
     for (i++; lines[i] != null && (!lines[i].trim() || lines[i].substr(bi, childIndentLen) === childIndent); i++) {
       const line = lines[i].substr(bi + childIndentLen);
       node.data += '\n' + (trim ? line.trim() : line);
-      node.sourceSpan.end = new ParseLocation(this.source, null, i, lines[i].length);
+      node.sourceSpan.end = new ParseLocation(this.source, i, lines[i].length);
       lines[i] = '';
     }
     if (trim) {

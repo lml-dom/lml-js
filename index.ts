@@ -1,47 +1,49 @@
 import { ASTModel } from './src/ast-model';
-import { ASTParser } from './src/ast-parser';
-import { HTMLParser } from './src/html-parser';
 import { JSONModel } from './src/json-model';
-import { JSONParser } from './src/json-parser';
-import { LMLParser } from './src/lml-parser';
 import { ParseConfig } from './src/parser';
+import { IParser } from './src/parser.d';
+import { ASTParser } from './src/parser/object-parser/ast-parser';
+import { JSONParser } from './src/parser/object-parser/json-parser';
+import { HTMLParser } from './src/parser/string-parser/html-parser';
+import { LMLParser } from './src/parser/string-parser/lml-parser';
+
+export { ASTModel } from './src/ast-model';
+export { JSONModel } from './src/json-model';
+export { OutputConfig } from './src/output';
+export { ParseConfig } from './src/parser';
 
 /**
  * Process an AST (JSON) file from source
- * @argument url path to file (pass empty string for unknown)
  * @argument src source to process
  * @argument config optional processing options
  */
-export function parseAST(url: string, src: string | ASTModel[], config?: ParseConfig): ASTParser {
-  return new ASTParser(url, src, config);
+export function parseAST(src: string | ASTModel[], config?: ParseConfig): IParser {
+  return new ASTParser(src, config);
 }
 
 /**
  * Process an HTML file from source
- * @argument url path to file (pass empty string for unknown)
  * @argument src source to process
  * @argument config optional processing options
  */
-export function parseHTML(url: string, src: string, config?: ParseConfig): HTMLParser {
-  return new HTMLParser(url, src, config);
+export function parseHTML(src: string, config?: ParseConfig): IParser {
+  return new HTMLParser(src, config);
 }
 
 /**
  * Process a JSON file from source
- * @argument url path to file (pass empty string for unknown)
  * @argument src source to process
  * @argument config optional processing options
  */
-export function parseJSON(url: string, src: string | JSONModel[], config?: ParseConfig): JSONParser {
-  return new JSONParser(url, src, config);
+export function parseJSON(src: string | JSONModel[], config?: ParseConfig): IParser {
+  return new JSONParser(src, config);
 }
 
 /**
  * Process an LML file from source
- * @argument url path to file (pass empty string for unknown)
  * @argument src source to process
  * @argument config optional processing options
  */
-export function parseLML(url: string, src: string, config?: ParseConfig): LMLParser {
-  return new LMLParser(url, src, config);
+export function parseLML(src: string, config?: ParseConfig): IParser {
+  return new LMLParser(src, config);
 }

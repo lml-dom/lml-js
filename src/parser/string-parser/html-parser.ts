@@ -1,10 +1,10 @@
 import { Parser as HtmlParser2 } from 'htmlparser2';
 
-import { DOMNode } from './dom-node';
-import { HtmlParseError } from './parse-error';
-import { ParseLocation } from './parse-location';
-import { ParseSourceSpan } from './parse-source-span';
-import { StringParser } from './string-parser';
+import { DOMNode } from '../../dom-node';
+import { HtmlParseError } from '../parse-error';
+import { ParseLocation } from '../parse-location';
+import { ParseSourceSpan } from '../parse-source-span';
+import { StringParser } from '../string-parser';
 
 /**
  * Parses HTML string to DOMNode[]. Depends on the cool `htmlparser2` package
@@ -70,17 +70,18 @@ export class HTMLParser extends StringParser {
   }
 
   private onError(error: Error): void {
-    this.errors.push(new HtmlParseError(this.currentSpan, String(error)));
+    throw new HtmlParseError(this.currentSpan, String(error));
   }
 
   private onTag(_name: string): void {
     const span = this.currentSpan;
-    const str = this.source.content.substring(span.start.offset + 1, span.end.offset - 1);
-    const {attrs} = this.parseTag(str, span.start.line, span.start.col);
-    const name = attrs.shift().name;
-    const node = this.add('element', this._parser['_stack'].length - (DOMNode.voidTags.includes(name) ? 0 : 1), span);
-    node.name = name;
-    node.attributes.push(...attrs);
+    const {attrs} = this.parseTag(new ParseSourceSpan(span.start.off(1), span.end.off(-1)));
+    const name = (attrs.shift() || {name: ''}).name;
+    if (name) {
+      const node = this.add('element', this._parser['_stack'].length - (DOMNode.voidTags.includes(name) ? 0 : 1), span);
+      node.name = name;
+      node.attributes.push(...attrs);
+    }
   }
 
   private onText(text: string): void {

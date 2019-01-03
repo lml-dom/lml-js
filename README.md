@@ -78,11 +78,7 @@ Translates to
 // convert HTML to LML
 const parseHTML = require('lml').parseHTML;
 
-const parser = parseHTML(filePath, htmlString);
-if (parser.error) {
-  console.error.apply(null, ['Parsing failed:'].concat(parser.errors));
-} else {
-  console.log(parser.toLML());
+parseHTML(htmlString).toLML());
 }
 ```
 
@@ -91,26 +87,21 @@ if (parser.error) {
 // convert LML to HTML
 import { parseLML } from 'lml';
 
-const parser = parseLML(filePath, lmlString);
-if (parser.error) {
-  console.error('Parsing failed:', ...parser.errors);
-} else {
-  console.log(parser.toHTML());
+parseLML(lmlString).toHTML();
 }
 ```
 
 #### Parsers
 Parser functions are exposed with the same signiture, and the returned object has the same interface:
-`parseAST(url: string, source: string | ASTModel[], parseConfig?: ParseConfig) => Parser`
-`parseHTML(url: string, source: string, parseConfig?: ParseConfig) => Parser`
-`parseJSON(url: string, source: string | JSONModel[], parseConfig?: ParseConfig) => Parser`
-`parseLML(url: string, source: string, parseConfig?: ParseConfig) => Parser`
+`parseAST(url: string, source: string | ASTModel[], parseConfig?: ParseConfig) => IParser`
+`parseHTML(url: string, source: string, parseConfig?: ParseConfig) => IParser`
+`parseJSON(url: string, source: string | JSONModel[], parseConfig?: ParseConfig) => IParser`
+`parseLML(url: string, source: string, parseConfig?: ParseConfig) => IParser`
 
 Parser interface:
 ```typescript
-interface Parser {
+interface IParser {
   errors: ParseError[];
-  error: ParseError; // getter pointing at the first error in errors. Indicates that there is at least one error
   toAST(config?: OutputConfig): ASTModel[];
   toHTML(config?: OutputConfig): string;
   toJSON(config?: OutputConfig): JSONModel[];
@@ -122,7 +113,7 @@ interface Parser {
 ```typescript
 interface ParseConfig {
   indentation?: string; // for parsing LML, if autodetection is not adequate
-  stopOnErrorCount?: number; // if number of errors becomes higher than this number, parsing will stop. Defaults to 20
+  url?: string; // path to source file
 }
 
 interface OutputConfig {

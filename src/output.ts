@@ -8,21 +8,14 @@ export interface OutputConfig {
   orderAttributes?: AttributeOrderMode;
 }
 
-const LINE_WRAP_MIN = 40;
-
 /**
  * Output base class
  */
 export abstract class Output<TOutput> {
   /**
-   * Default configuration for output
-   */
-  public static defaultConfig: OutputConfig = {indentation: '  ', lineWrap: 120};
-
-  /**
    * Output modifier options
    */
-  public readonly config: OutputConfig = {...Output.defaultConfig};
+  public readonly config: OutputConfig = {indentation: '  ', lineWrap: 120};
 
   /**
    * Init object, set basic properties. Use `.convert()` right after
@@ -31,7 +24,6 @@ export abstract class Output<TOutput> {
    */
   constructor(public readonly nodes: DOMNode[], config?: OutputConfig) {
     this.config = {...this.config, ...(config || {})};
-    this.config.lineWrap = Math.max(LINE_WRAP_MIN, +this.config.lineWrap);
   }
 
   /**

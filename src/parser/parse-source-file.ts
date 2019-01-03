@@ -22,7 +22,7 @@ export class ParseSourceFile {
   /**
    * Initialize source file. Will cache line offsets.
    */
-  constructor(public readonly content: string, public readonly url: string) {
+  constructor(public readonly content: string, public readonly url = '') {
     this.content = this.content.replace(CR_OR_CRLF_REGEXP, '\n').replace(TRAILING_EMPTY_LINES_RX, '');
 
     let offset = 0;

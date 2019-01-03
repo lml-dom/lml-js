@@ -9,6 +9,16 @@ export class ParseSourceSpan {
   constructor(public start: ParseLocation, public end: ParseLocation, public details: string = null) {}
 
   /**
+   * Generate new ParseSpan off of start location and char count
+   * @argument moveBy leave it to 0 to start at original location
+   * @argument length character length of span
+   */
+  public off(moveBy: number, length: number): ParseSourceSpan {
+    const start = this.start.off(moveBy);
+    return new ParseSourceSpan(start, start.off(length));
+  }
+
+  /**
    * String between start (included) and end (excluded) positions
    */
   public toString(): string {

@@ -1,4 +1,5 @@
-import { ParseSourceSpan } from './parse-source-span';
+import { ParseLocation } from './parser/parse-location';
+import { ParseSourceSpan } from './parser/parse-source-span';
 
 export type AttributeOrderMode = 'angular' | 'ascii' | 'natural';
 
@@ -26,6 +27,16 @@ function naturalComparable(name: string): string {
  * Attribute of an HTML tag
  */
 export class DOMNodeAttribute {
+  /**
+   * Position of the equal sign
+   */
+  public eqPos?: ParseLocation;
+
+  /**
+   * Quote used in original string
+   */
+  public quote?: '\'' | '"';
+
   /**
    * Order attributes
    * @argument attributes Array of attributes to reorder

@@ -94,7 +94,6 @@
     "type-literal-delimiter": true,
     "typedef": [true, "call-signature"],
     "typedef-whitespace": [true, {"call-signature": "nospace", "index-signature": "nospace", "parameter": "nospace", "property-declaration": "nospace", "variable-declaration": "nospace"}],
-    "unified-signatures": true,
     "use-default-type-parameter": true,
     "use-isnan": true,
     "variable-name": false,

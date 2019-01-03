@@ -3,9 +3,10 @@ import { readFileSync, writeFileSync } from 'fs';
 import * as minimist from 'minimist';
 
 import { parseAST, parseHTML, parseJSON, parseLML } from './index';
-import { Output, OutputConfig } from './src/output';
-import { ParseError } from './src/parse-error';
-import { ParseConfig, Parser } from './src/parser';
+import { OutputConfig } from './src/output';
+import { ParseConfig } from './src/parser';
+import { IParser } from './src/parser.d';
+import { ParseError } from './src/parser/parse-error';
 
 type Format = 'ast' | 'html' | 'json' | 'lml';
 
@@ -49,9 +50,11 @@ class CLI {
       this.help();
     }
 
-    const parser = this.parsers[this.from](this.url, this.source, this.parseConfig);
-    if (parser.error) {
-      this.error(...parser.errors);
+    let parser: IParser;
+    try {
+      parser = this.parsers[this.from](this.source, this.parseConfig);
+    } catch (err) {
+      this.error(err);
     }
 
     const result = parser[this.outputs[this.to]](this.outputConfig);
@@ -98,9 +101,6 @@ class CLI {
       outputConfig.minify = true;
     } else if (this.args.indentation) {
       outputConfig.indentation = this.args.indentation.toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
-      if (!Parser.validateIndentation(outputConfig.indentation)) {
-        this.error('indentation can only be spaces or one tab');
-      }
       if (this.to === 'lml' && !outputConfig.indentation) {
         this.error('indentation must be at least one space for LML');
       }
@@ -119,12 +119,9 @@ class CLI {
    * Parse config overrides from CLI arguments
    */
   private get parseConfig(): ParseConfig {
-    const parseConfig: ParseConfig = {};
+    const parseConfig: ParseConfig = {url: this.url};
     if (this.from === 'lml' && this.args['input-indentation']) {
       parseConfig.indentation = this.args['input-indentation'].toLowerCase().replace(/\\/g, '').replace(/s/g, ' ').replace(/t/g, '\t');
-      if (!Parser.validateIndentation(parseConfig.indentation)) {
-        this.error('indentation can only be spaces or one tab');
-      }
       if (!parseConfig.indentation) {
         this.error('input indentation must be at least one space or tab for LML');
       }
@@ -170,12 +167,9 @@ class CLI {
   /**
    * Print human readable error(s) and stop running.
    */
-  private error(...errors: (string | Error | ParseError)[]): void {
-    errors = errors.filter((err) => !!err);
-    if (errors.length) {
-      for (const err of errors) {
-        console.error('[ERROR]', typeof err === 'string' ? err : (String(err)));
-      }
+  private error(error: string | Error | ParseError): void {
+    if (error) {
+      console.error('[ERROR]', typeof error === 'string' ? error : (String(error)));
       console.error('Run `lml --help` for help and options');
       process.exit(1);
     }

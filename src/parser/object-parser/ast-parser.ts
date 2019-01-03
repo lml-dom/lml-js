@@ -1,8 +1,8 @@
-import { ASTModel } from './ast-model';
-import { DOMNode } from './dom-node';
-import { DOMNodeAttribute } from './dom-node-attribute';
-import { ObjectParser } from './object-parser';
-import { JsonParseError } from './parse-error';
+import { ASTModel } from '../../ast-model';
+import { DOMNode } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
+import { ObjectParser } from '../object-parser';
+import { JsonParseError } from '../parse-error';
 
 /**
  * Parses ASTModel[] to DOMNode[]
@@ -18,7 +18,7 @@ export class ASTParser extends ObjectParser<ASTModel> {
         const attribs = item.attribs && typeof item.attribs === 'object' && !Array.isArray(item.attribs) ? item.attribs : {};
         for (const [attrib, value] of Object.entries<string>(attribs)) {
           if (value && typeof value === 'object') {
-            this.errors.push(new JsonParseError(null, 'Attributes must have string (or empty) values. Key: ' + attrib));
+            throw new JsonParseError('Attributes must have string (or empty) values. Key: ' + attrib);
           } else {
             node.attributes.push(new DOMNodeAttribute(attrib, value));
           }
@@ -40,7 +40,7 @@ export class ASTParser extends ObjectParser<ASTModel> {
       }
 
       default: {
-        this.errors.push(new JsonParseError(null, 'Unknown type: ' + (item.type || 'unspecified')));
+        throw new JsonParseError('Unknown type: ' + (item.type || 'unspecified'));
       }
     }
   }

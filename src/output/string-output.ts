@@ -1,14 +1,25 @@
-import { MIN_AVAILABLE_CHARS_BEFORE_LINE_WRAP } from './const';
-import { DOMNode } from './dom-node';
-import { DOMNodeAttribute } from './dom-node-attribute';
-import { Output } from './output';
+import { MIN_AVAILABLE_CHARS_BEFORE_LINE_WRAP } from '../const';
+import { DOMNode } from '../dom-node';
+import { DOMNodeAttribute } from '../dom-node-attribute';
+import { Output, OutputConfig } from '../output';
+import { InvalidConfigurationError } from '../parser/parse-error';
+import { validateIndentationConfig } from '../validate-indentation-config';
 
+const LINE_WRAP_MIN = 40;
 const wrapRx: RegExp[] = [];
 
 /**
  * String output (LML or HTML) base class
  */
 export abstract class StringOutput extends Output<string> {
+  constructor(nodes: DOMNode[], config?: OutputConfig) {
+    super(nodes, config);
+    this.config.lineWrap = Math.max(LINE_WRAP_MIN, +this.config.lineWrap);
+    if (!validateIndentationConfig(this.config.indentation)) {
+      throw new InvalidConfigurationError('Invalid output indentation');
+    }
+  }
+
   public convert(nodes = this.nodes): string {
     return nodes.map((node) => this[node.type](node)).join('');
   }

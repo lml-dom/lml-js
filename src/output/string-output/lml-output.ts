@@ -1,6 +1,6 @@
-import { LML_SIGN, TEXT_BLOCK_ELEMENTS } from './const';
-import { DOMNode } from './dom-node';
-import { StringOutput } from './string-output';
+import { LML_SIGN, TEXT_BLOCK_ELEMENTS } from '../../const';
+import { DOMNode } from '../../dom-node';
+import { StringOutput } from '../string-output';
 
 /**
  * Parses DOMNode[] to LML string

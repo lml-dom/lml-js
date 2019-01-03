@@ -1,7 +1,7 @@
-import { ASTModel } from './ast-model';
-import { DOMNode } from './dom-node';
-import { DOMNodeAttribute } from './dom-node-attribute';
-import { Output } from './output';
+import { ASTModel } from '../../ast-model';
+import { DOMNode } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
+import { Output } from '../../output';
 
 /**
  * Parses DOMNode[] to ASTModel[]

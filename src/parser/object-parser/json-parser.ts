@@ -1,8 +1,8 @@
-import { DOMNode } from './dom-node';
-import { DOMNodeAttribute } from './dom-node-attribute';
-import { JSONModel } from './json-model';
-import { ObjectParser } from './object-parser';
-import { JsonParseError } from './parse-error';
+import { DOMNode } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
+import { JSONModel } from '../../json-model';
+import { ObjectParser } from '../object-parser';
+import { JsonParseError } from '../parse-error';
 
 /**
  * Parses JSONModel[] to DOMNode[]
@@ -14,12 +14,12 @@ export class JSONParser extends ObjectParser<JSONModel> {
         const node = new DOMNode('element', parent);
         node.name = item.name;
         node.attributes.push(...item.attributes.map((attrib) => new DOMNodeAttribute(attrib.name, attrib.value)));
-        this.parseChildren(item.children || [], node);
+        this.parseChildren(item.children, node);
         break;
       }
 
       case 'cdata': {
-        this.parseChildren(item.children || [], new DOMNode('cdata', parent));
+        this.parseChildren(item.children, new DOMNode('cdata', parent));
         break;
       }
 
@@ -31,7 +31,7 @@ export class JSONParser extends ObjectParser<JSONModel> {
       }
 
       default: {
-        this.errors.push(new JsonParseError(null, 'Unknown type: ' + (item.type || 'unspecified')));
+        throw new JsonParseError('Unknown type: ' + (item.type || 'unspecified'));
       }
     }
   }

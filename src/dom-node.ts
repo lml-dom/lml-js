@@ -1,5 +1,5 @@
 import { DOMNodeAttribute } from './dom-node-attribute';
-import { ParseSourceSpan } from './parse-source-span';
+import { ParseSourceSpan } from './parser/parse-source-span';
 
 export type DOMNodeType = 'cdata' | 'comment' | 'directive' | 'element' | 'text';
 

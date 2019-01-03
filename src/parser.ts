@@ -1,100 +1,49 @@
 import { ASTModel } from './ast-model';
-import { ASTOutput } from './ast-output';
 import { DOMNode } from './dom-node';
-import { HTMLOutput } from './html-output';
 import { JSONModel } from './json-model';
-import { JSONOutput } from './json-output';
-import { LMLOutput } from './lml-output';
 import { OutputConfig } from './output';
-import { InvalidSourceError, ParseError } from './parse-error';
-import { ParseLocation } from './parse-location';
-import { ParseSourceFile } from './parse-source-file';
-import { ParseSourceSpan } from './parse-source-span';
+import { ASTOutput } from './output/object-output/ast-output';
+import { JSONOutput } from './output/object-output/json-output';
+import { HTMLOutput } from './output/string-output/html-output';
+import { LMLOutput } from './output/string-output/lml-output';
+import { IParser } from './parser.d';
+import { ParseLocation } from './parser/parse-location';
+import { INDENTATION_REGEX, ParseSourceFile } from './parser/parse-source-file';
+import { ParseSourceSpan } from './parser/parse-source-span';
+import { InvalidParentWarning, InvalidTagNameWarning, ParseWarning } from './parser/parse-warning';
 
 export interface ParseConfig {
   indentation?: string;
-  stopOnErrorCount?: number;
+  url?: string;
 }
 
-const NOT_TAB_OR_SPACE_RX = /[^ \t]/g;
-const SPACE_RX = / /g;
-const TAB_RX = /\t/g;
+const LINE_END_SPACES_RX = /\s*$/;
+const PARENT_TYPES = ['cdata', 'element'];
+const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 
 /**
  * Parsing base class. Serves HtmlParser and LmlParser
  */
-export abstract class Parser<TSource> {
-  /**
-   * Default configuration for parsing
-   */
-  public static defaultConfig: ParseConfig = {stopOnErrorCount: 20};
-
-  /**
-   * Parse modifier options
-   */
-  public readonly config: ParseConfig = {...Parser.defaultConfig};
-
-  /**
-   * Errors while parsing
-   */
-  public readonly errors: ParseError[] = [];
-
+export abstract class Parser implements IParser {
   /**
    * Top level DOM elements
    */
   public readonly rootNodes: DOMNode[] = [];
 
   /**
+   * Non-breaking errors while parsing
+   */
+  public readonly errors: ParseWarning[] = [];
+
+  /**
+   * Parse modifier options
+   */
+  public config: ParseConfig = {};
+
+  /**
    * Parsing source
    */
   public source: ParseSourceFile;
-
-  /**
-   * JSON/AST source
-   */
-  protected srcObj: TSource[];
-
-  /**
-   * Determines whether indentation is errorous
-   * @argument indentation spaces or tabs to validate
-   */
-  public static validateIndentation(indentation: string): boolean {
-    return !indentation.replace(NOT_TAB_OR_SPACE_RX, '').length &&
-      !indentation.replace((indentation[0] === '\t' ? TAB_RX : SPACE_RX), '').length &&
-      (indentation[0] !== '\t' || indentation.length === 1);
-  }
-
-  /**
-   * Instantiation triggers parsing
-   * @argument url Source file path
-   * @argument src Parsable source string or JSON-style object
-   * @argument config Optional input parsing configuration overrides
-   */
-  constructor(url: string, src: TSource[] | string, config?: ParseConfig) {
-    this.config = {...this.config, ...(config || {})};
-    url = typeof url === 'string' && url || '';
-    if (typeof src !== 'string') {
-      let str: string;
-      this.srcObj = <TSource[]>src;
-      try {
-        str = JSON.stringify(src);
-      } catch (err) {
-        this.errors.push(new InvalidSourceError(null, String(err)));
-      }
-      this.source = new ParseSourceFile(str, url);
-    } else {
-      this.source = new ParseSourceFile(src, url);
-    }
-
-    this.parse();
-  }
-
-  /**
-   * Returns first parsing error if any
-   */
-  public get error(): ParseError {
-    return this.errors[0];
-  }
 
   /**
    * Convert to AST
@@ -137,10 +86,24 @@ export abstract class Parser<TSource> {
   }
 
   /**
-   * Indicates whether parsing should stop (e.g too many errors)
+   * Find the number of whitespace characters that occurs on every non-void line
+   * @argument lines source to check. Defaults to source content lines
    */
-  protected get stopParse(): boolean {
-    return this.errors.length >= Math.max(+this.config.stopOnErrorCount, 1);
+  protected idBlockIndentation(lines = this.source.lines): number {
+    let blockIndentation: number;
+    for (const line of lines) {
+      if (blockIndentation !== 0 && line.trim()) {
+        const indentation = line.match(INDENTATION_REGEX)[0].length;
+
+        if (blockIndentation == null || indentation < blockIndentation) {
+          blockIndentation = indentation;
+          if (indentation < 1) {
+            return indentation;
+          }
+        }
+      }
+    }
+    return blockIndentation || 0;
   }
 
   /**
@@ -170,13 +133,73 @@ export abstract class Parser<TSource> {
   /**
    * Obtain ParseSourceSpan from start line/col and end line/col
    * @argument startLine line # where the span starts
-   * @argument startCol col # where the span starts
+   * @argument startCol col # where the span starts (first included character)
    * @argument endLine line # where the span ends
-   * @argument endCol col # where the span ends
+   * @argument endCol col # where the span ends (first excluded character)
    */
-  protected parseSpan(startLine: number, startCol: number, endLine = startLine, endCol = startCol): ParseSourceSpan {
-    const start = new ParseLocation(this.source, null, startLine, startCol);
-    const end = new ParseLocation(this.source, null, endLine, endCol);
-    return new ParseSourceSpan(start, end);
+  protected parseSpan(startLine: number, startCol: number, endLine: number, endCol: number): ParseSourceSpan {
+    return new ParseSourceSpan(new ParseLocation(this.source, startLine, startCol), new ParseLocation(this.source, endLine, endCol));
+  }
+
+  /**
+   * Remove unnecessary data recursively
+   * @argument nodes child nodes to exemine. Not passing them will trigger processing rootNodes
+   */
+  protected postProcess(nodes = this.rootNodes): DOMNode[] {
+    for (const node of nodes) {
+      if (node.parent && (!PARENT_TYPES.includes(node.parent.type) ||
+        (node.parent.type === 'element' && DOMNode.voidTags.includes(node.parent.name)))
+      ) {
+        this.errors.push(new InvalidParentWarning(node.sourceSpan));
+      }
+
+      if (node.type === 'element' && !node.name.match(TAGNAME_RX)) {
+        this.errors.push(new InvalidTagNameWarning(node.sourceSpan.off(0, node.name.length)));
+      }
+
+      if (node.type === 'element' || node.type === 'cdata') {
+        this.mergeTextChildren(node);
+
+        const children = node.children;
+
+        if (node.name !== 'textarea' && node.type !== 'cdata') {
+          // sanitize text indentations
+          for (const child of children) {
+            if (child.type === 'text') {
+              const lines = (child.data || '').split('\n');
+              const bi = this.idBlockIndentation(lines);
+              child.data = lines.map((line) => line.substr(bi).replace(LINE_END_SPACES_RX, '')).join('\n').trim();
+            }
+          }
+
+          // remove empty interconnecting text nodes
+          for (let i = children.length - 1; i >= 0; i--) {
+            const child = children[i];
+            const previous = children[i - 1];
+            const next = children[i + 1];
+            if (child.type === 'text' && (!previous || previous.type !== 'text') && (!next || next.type !== 'text') &&
+            (!child.data || !child.data.trim())) {
+              children.splice(i, 1);
+            }
+          }
+        }
+
+        const filteredChildren = this.postProcess(children);
+        children.length = 0;
+        children.push(...filteredChildren);
+      }
+    }
+
+    const filtered = nodes.filter((node) => {
+      return (node.type !== 'comment' || (node.data && node.data.trim())) &&
+        (node.type !== 'text' || (node.parent && node.parent.name === 'textarea') || (node.data && node.data.trim()));
+    });
+
+    if (nodes === this.rootNodes) {
+      this.rootNodes.length = 0;
+      this.rootNodes.push(...filtered);
+    }
+
+    return filtered;
   }
 }

@@ -1,6 +1,6 @@
-import { TEXT_BLOCK_ELEMENTS } from './const';
-import { DOMNode } from './dom-node';
-import { StringOutput } from './string-output';
+import { TEXT_BLOCK_ELEMENTS } from '../../const';
+import { DOMNode } from '../../dom-node';
+import { StringOutput } from '../string-output';
 
 /**
  * Parses DOMNode[] to HTML string

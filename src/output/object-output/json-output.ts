@@ -1,7 +1,7 @@
-import { DOMNode } from './dom-node';
-import { DOMNodeAttribute } from './dom-node-attribute';
-import { JSONModel } from './json-model';
-import { Output } from './output';
+import { DOMNode } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
+import { JSONModel } from '../../json-model';
+import { Output } from '../../output';
 
 /**
  * Parses DOMNode[] to JSONModel[]
