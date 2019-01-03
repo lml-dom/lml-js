@@ -1,5 +1,6 @@
 import { LML_MULTILINE_CONCATENATOR, LML_SIGN, TEXT_BLOCK_ELEMENTS } from '../../const';
 import { DOMNode, DOMNodeType } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
 import { validateIndentationConfig } from '../../validate-indentation-config';
 import { InvalidConfigurationError } from '../parse-error';
 import { ParseLocation } from '../parse-location';
@@ -100,15 +101,16 @@ export class LMLParser extends StringParser {
         }
 
         case 'element': {
-          const parsed = this.parseTag(this.parseSpan(i, bi + spaces, i, line.length), true);
-          node.name = parsed.attrs.shift().name;
-          node.attributes.push(...parsed.attrs);
+          const attributes: DOMNodeAttribute[] = [];
+          const text = this.parseTag(this.parseSpan(i, bi + spaces, i, line.length), attributes, true);
+          node.name = attributes.shift().name;
+          node.attributes.push(...attributes);
           const childIndent = indent + indentation;
           const childIndentLen = childIndent.length;
-          if (parsed.text) {
-            node.sourceSpan.end = new ParseLocation(this.source, parsed.text.sourceSpan.start.offset - 1);
-            if (node.name === 'textarea' || parsed.text.data.trim()) {
-              parsed.text.parent = node;
+          if (text) {
+            node.sourceSpan.end = text ? text.sourceSpan.start : new ParseLocation(this.source, text.sourceSpan.start.offset - 1);
+            if (node.name === 'textarea' || text.data.trim()) {
+              text.parent = node;
             }
           } else {
             let trimmed: string;
@@ -121,14 +123,13 @@ export class LMLParser extends StringParser {
               if (pos !== bi + childIndentLen) {
                 this.errors.push(new MultilineAttributeIndentationWarning(this.parseSpan(i, 0, i, pos + 1)));
               }
-              const {text, attrs} = this.parseTag(this.parseSpan(i, pos + 1, i, lines[i].length), true);
-              node.sourceSpan.end = new ParseLocation(this.source, i, lines[i].length);
+              const subtext = this.parseTag(this.parseSpan(i, pos + 1, i, lines[i].length), node.attributes, true);
+              node.sourceSpan.end = subtext ? subtext.sourceSpan.start : new ParseLocation(this.source, i, lines[i].length);
               lines[i] = '';
-              node.attributes.push(...attrs);
-              if (text) {
-                node.sourceSpan.end = new ParseLocation(this.source, text.sourceSpan.start.offset - 1);
-                if (node.name === 'textarea' || text.data.trim()) {
-                  text.parent = node;
+              if (subtext) {
+                node.sourceSpan.end = new ParseLocation(this.source, subtext.sourceSpan.start.offset - 1);
+                if (node.name === 'textarea' || subtext.data.trim()) {
+                  subtext.parent = node;
                 }
                 break;
               }
@@ -137,8 +138,8 @@ export class LMLParser extends StringParser {
           if (TEXT_BLOCK_ELEMENTS.includes(node.name) && lines[i + 1] != null &&
             (!lines[i + 1].trim() || lines[i + 1].substr(bi, childIndentLen) === childIndent)
           ) {
-            const text = this.add('text', level + 1, this.parseSpan(i + 1, bi + childIndentLen, i + 1, lines[i + 1].length));
-            this.textBlockData(text, i + 1, childIndent, bi, 0, node.name !== 'textarea', true);
+            const textBlock = this.add('text', level + 1, this.parseSpan(i + 1, bi + childIndentLen, i + 1, lines[i + 1].length));
+            this.textBlockData(textBlock, i + 1, childIndent, bi, 0, node.name !== 'textarea', true);
           }
         }
       }

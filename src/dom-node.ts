@@ -43,10 +43,10 @@ export class DOMNode {
    * @argument sourceSpan optional start/end ref in source
    * @argument data Data of text, comment or directive types. CDATA will get a text child if passed
    */
-  constructor(public readonly type: DOMNodeType, parent: DOMNode = null, public sourceSpan?: ParseSourceSpan, public data?: string) {
-    if (type === 'cdata' && data != null) {
-      new DOMNode('text', this, sourceSpan, data);
-      this.data = null;
+  constructor(public readonly type: DOMNodeType, parent: DOMNode = null, public sourceSpan?: ParseSourceSpan, public data = '') {
+    if (type === 'cdata' && this.data) {
+      new DOMNode('text', this, sourceSpan, this.data);
+      this.data = '';
     }
     this.parent = parent;
   }

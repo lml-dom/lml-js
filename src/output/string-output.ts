@@ -1,7 +1,8 @@
 import { MIN_AVAILABLE_CHARS_BEFORE_LINE_WRAP } from '../const';
 import { DOMNode } from '../dom-node';
 import { DOMNodeAttribute } from '../dom-node-attribute';
-import { Output, OutputConfig } from '../output';
+import { Output } from '../output';
+import { OutputConfig } from '../output-config.d';
 import { InvalidConfigurationError } from '../parser/parse-error';
 import { validateIndentationConfig } from '../validate-indentation-config';
 
@@ -48,7 +49,7 @@ export abstract class StringOutput extends Output<string> {
    */
   protected indentMultilineData(node: DOMNode, pushAsChild = true): string {
     const childIndentation = this.indentation(node, pushAsChild ? 1 : 0);
-    return (node.data || '').split('\n').map((line, i) => i ? childIndentation + line : line).join('\n');
+    return node.data.split('\n').map((line, i) => i ? childIndentation + line : line).join('\n');
   }
 
   /**
@@ -81,7 +82,7 @@ export abstract class StringOutput extends Output<string> {
    * @argument node parent node
    */
   protected textChildrenString(node: DOMNode): string {
-    return this.textChildren(node).map((child) => child.data || '').join('');
+    return this.textChildren(node).map((child) => child.data).join('');
   }
 
   /**

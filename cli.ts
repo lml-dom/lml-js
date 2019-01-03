@@ -2,11 +2,7 @@
 import { readFileSync, writeFileSync } from 'fs';
 import * as minimist from 'minimist';
 
-import { parseAST, parseHTML, parseJSON, parseLML } from './index';
-import { OutputConfig } from './src/output';
-import { ParseConfig } from './src/parser';
-import { IParser } from './src/parser.d';
-import { ParseError } from './src/parser/parse-error';
+import { IParser, OutputConfig, ParseConfig, ParseError, parseAST, parseHTML, parseJSON, parseLML } from './index';
 
 type Format = 'ast' | 'html' | 'json' | 'lml';
 

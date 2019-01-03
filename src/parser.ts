@@ -1,21 +1,17 @@
 import { ASTModel } from './ast-model';
 import { DOMNode } from './dom-node';
 import { JSONModel } from './json-model';
-import { OutputConfig } from './output';
+import { OutputConfig } from './output-config.d';
 import { ASTOutput } from './output/object-output/ast-output';
 import { JSONOutput } from './output/object-output/json-output';
 import { HTMLOutput } from './output/string-output/html-output';
 import { LMLOutput } from './output/string-output/lml-output';
+import { ParseConfig } from './parser-config.d';
 import { IParser } from './parser.d';
 import { ParseLocation } from './parser/parse-location';
 import { INDENTATION_REGEX, ParseSourceFile } from './parser/parse-source-file';
 import { ParseSourceSpan } from './parser/parse-source-span';
 import { InvalidParentWarning, InvalidTagNameWarning, ParseWarning } from './parser/parse-warning';
-
-export interface ParseConfig {
-  indentation?: string;
-  url?: string;
-}
 
 const LINE_END_SPACES_RX = /\s*$/;
 const PARENT_TYPES = ['cdata', 'element'];
@@ -166,7 +162,7 @@ export abstract class Parser implements IParser {
           // sanitize text indentations
           for (const child of children) {
             if (child.type === 'text') {
-              const lines = (child.data || '').split('\n');
+              const lines = child.data.split('\n');
               const bi = this.idBlockIndentation(lines);
               child.data = lines.map((line) => line.substr(bi).replace(LINE_END_SPACES_RX, '')).join('\n').trim();
             }

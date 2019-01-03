@@ -1,6 +1,6 @@
 import { ASTModel } from './src/ast-model';
 import { JSONModel } from './src/json-model';
-import { ParseConfig } from './src/parser';
+import { ParseConfig } from './src/parser-config.d';
 import { IParser } from './src/parser.d';
 import { ASTParser } from './src/parser/object-parser/ast-parser';
 import { JSONParser } from './src/parser/object-parser/json-parser';
@@ -9,8 +9,10 @@ import { LMLParser } from './src/parser/string-parser/lml-parser';
 
 export { ASTModel } from './src/ast-model';
 export { JSONModel } from './src/json-model';
-export { OutputConfig } from './src/output';
-export { ParseConfig } from './src/parser';
+export { OutputConfig } from './src/output-config.d';
+export { ParseConfig } from './src/parser-config.d';
+export { ParseError } from './src/parser/parse-error';
+export { IParser } from './src/parser.d';
 
 /**
  * Process an AST (JSON) file from source

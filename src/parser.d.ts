@@ -1,6 +1,6 @@
 import { ASTModel } from './ast-model';
 import { JSONModel } from './json-model';
-import { OutputConfig } from './output';
+import { OutputConfig } from './output-config.d';
 import { ParseError } from './parser/parse-error';
 
 export interface IParser {

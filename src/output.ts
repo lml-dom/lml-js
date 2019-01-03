@@ -1,12 +1,5 @@
 import { DOMNode } from './dom-node';
-import { AttributeOrderMode } from './dom-node-attribute';
-
-export interface OutputConfig {
-  indentation?: string;
-  lineWrap?: number;
-  minify?: boolean;
-  orderAttributes?: AttributeOrderMode;
-}
+import { OutputConfig } from './output-config.d';
 
 /**
  * Output base class

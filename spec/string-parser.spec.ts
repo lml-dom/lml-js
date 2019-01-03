@@ -2,6 +2,7 @@
 
 import { parseLML } from '../index';
 import { InvalidAttributeNameWarning, InvalidAttributeValueWarning, InvalidQuoteSignWarning } from '../src/parser/parse-warning';
+import { LMLParser } from '../src/parser/string-parser/lml-parser';
 
 describe('StringParser', () => {
   it('throws on invalid source', () => {
@@ -12,7 +13,7 @@ describe('StringParser', () => {
   describe('Element', () => {
     describe('Attribute', () => {
       it('parses attributes', () => {
-        const parser = parseLML(`span class="abc def" hidden`);
+        const parser = <LMLParser>parseLML(`span class="abc def" hidden`);
         const json = parser.toJSON();
         expect(json[0].attributes.length).toBe(2);
         expect(json[0].attributes[0].name).toBe('class');
@@ -20,6 +21,11 @@ describe('StringParser', () => {
         expect(json[0].attributes[1].name).toBe('hidden');
         expect(json[0].attributes[1].value).toBeUndefined();
         expect(parser.errors.length).toBe(0);
+        expect(parser.rootNodes[0].attributes[0].sourceSpan.start.col).toBe(5);
+        expect(parser.rootNodes[0].attributes[0].sourceSpan.end.col).toBe(20);
+        expect(parser.rootNodes[0].attributes[0].eqPos.col).toBe(10);
+        expect(parser.rootNodes[0].attributes[0].valueSpan.start.col).toBe(11);
+        expect(parser.rootNodes[0].attributes[0].valueSpan.end.col).toBe(20);
       });
 
       describe('error scenario', () => {

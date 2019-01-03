@@ -12,24 +12,24 @@ export class JSONOutput extends Output<JSONModel> {
   }
 
   public cdata(node: DOMNode): JSONModel {
-    return {type: 'cdata', children: this.convert(node.children)};
+    return {type: node.type, children: this.convert(node.children)};
   }
 
   public comment(node: DOMNode): JSONModel {
-    return {type: 'comment', data: node.data};
+    return {type: node.type, data: node.data};
   }
 
   public directive(node: DOMNode): JSONModel {
-    return {type: 'directive', data: node.data};
+    return {type: node.type, data: node.data};
   }
 
   public element(node: DOMNode): JSONModel {
     const attributes = DOMNodeAttribute.sort(node.attributes, this.config.orderAttributes)
       .map((attrib) => attrib.value ? {name: attrib.name, value: attrib.value} : {name: attrib.name});
-    return {type: 'element', name: node.name, attributes, children: this.convert(node.children)};
+    return {type: node.type, name: node.name, attributes, children: this.convert(node.children)};
   }
 
   public text(node: DOMNode): JSONModel {
-    return {type: 'text', data: node.data || ''};
+    return {type: node.type, data: node.data};
   }
 }

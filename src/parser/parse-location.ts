@@ -1,5 +1,17 @@
 import { ParseSourceFile } from './parse-source-file';
 
+interface Context {
+  /**
+   * string before pos
+   */
+  before: string;
+
+  /**
+   * string after pos
+   */
+  after: string;
+}
+
 /**
  * Source string position
  * *Somewhat* resembles the @angular/compiler `ParseLocation` class
@@ -66,7 +78,7 @@ export class ParseLocation {
   /**
    * Strings before and after the problem-position
    */
-  public getContext(maxChars: number, maxLines: number): {before: string; after: string} {
+  public getContext(maxChars: number, maxLines: number): Context {
     const file = this.file;
     const start = Math.max(this.offset - maxChars, file.lineOffsets[Math.max(0, this.line - (maxLines - 1))]);
     const end = Math.min(this.offset + maxChars, file.lineOffsets[Math.min(file.lineOffsets.length - 1, this.line + (maxLines - 1))]);

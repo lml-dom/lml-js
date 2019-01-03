@@ -37,8 +37,7 @@ export class ParseError {
    * Error/warning context and message in string
    */
   public toString(): string {
-    const details = this.span && this.span.details ? `, ${this.span.details}` : '';
-    return `${this.contextualMessage()}: ${this.span && this.span.start || ''}${details}`;
+    return `${this.contextualMessage()}: ${this.span && this.span.start || ''}`;
   }
 }
 

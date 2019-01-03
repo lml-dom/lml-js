@@ -1,6 +1,7 @@
 import { Parser as HtmlParser2 } from 'htmlparser2';
 
 import { DOMNode } from '../../dom-node';
+import { DOMNodeAttribute } from '../../dom-node-attribute';
 import { HtmlParseError } from '../parse-error';
 import { ParseLocation } from '../parse-location';
 import { ParseSourceSpan } from '../parse-source-span';
@@ -42,9 +43,7 @@ export class HTMLParser extends StringParser {
    * Source span currently used
    */
   private get currentSpan(): ParseSourceSpan {
-    const start = new ParseLocation(this.source, this._parser['startIndex']);
-    const end = new ParseLocation(this.source, this._parser['endIndex'] + 1);
-    return new ParseSourceSpan(start, end);
+    return new ParseSourceSpan(this.source, this._parser['startIndex'], this._parser['endIndex'] + 1);
   }
 
   private onCData(): void {
@@ -75,19 +74,20 @@ export class HTMLParser extends StringParser {
 
   private onTag(_name: string): void {
     const span = this.currentSpan;
-    const {attrs} = this.parseTag(new ParseSourceSpan(span.start.off(1), span.end.off(-1)));
-    const name = (attrs.shift() || {name: ''}).name;
+    const attributes: DOMNodeAttribute[] = [];
+    this.parseTag(new ParseSourceSpan(span.start.off(1), span.end.off(-1)), attributes);
+    const name = (attributes.shift() || {name: ''}).name;
     if (name) {
       const node = this.add('element', this._parser['_stack'].length - (DOMNode.voidTags.includes(name) ? 0 : 1), span);
       node.name = name;
-      node.attributes.push(...attrs);
+      node.attributes.push(...attributes);
     }
   }
 
   private onText(text: string): void {
     const level = this._parser['_stack'].length + (this._cdata ? 1 : 0);
     const span = this.currentSpan;
-    if (level === this._lastLevel && this._last.type === 'text') {
+    if (level === this._lastLevel && this._last && this._last.type === 'text') {
       this._last.data += text;
       if (this._last.sourceSpan) {
         this._last.sourceSpan.end = span.end;

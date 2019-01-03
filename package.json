@@ -1,6 +1,6 @@
 {
   "name": "lml",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Light Meta Language. A simple-yet-powerful HTML syntax alternative",
   "keywords": [
     "lml",
@@ -41,16 +41,16 @@
   },
   "devDependencies": {
     "@types/htmlparser2": "3.7.31",
-    "@types/jasmine": "3.3.2",
+    "@types/jasmine": "3.3.5",
     "@types/minimist": "1.2.0",
-    "@types/node": "10.12.15",
+    "@types/node": "10.12.18",
     "browserify": "16.2.3",
     "jasmine": "3.3.1",
     "jasmine-ts": "0.3.0",
     "nyc": "13.1.0",
     "ts-node": "7.0.1",
-    "tslint": "5.11.0",
-    "typedoc": "0.13.0",
+    "tslint": "5.12.0",
+    "typedoc": "0.14.0",
     "typescript": "3.2.2"
   }
 }

@@ -54,7 +54,7 @@ export class HTMLOutput extends StringOutput {
 
   public text(node: DOMNode): string {
     if (this.config.minify) {
-      return (node.data || '').trim();
+      return node.data.trim();
     }
     const indentation = this.indentation(node);
     return this.wrapLines(`${indentation}${this.indentMultilineData(node).trim()}`, indentation) + '\n';

@@ -1,7 +1,8 @@
 import { LML_TEXT_SIGN } from '../const';
 import { DOMNode, DOMNodeType } from '../dom-node';
 import { DOMNodeAttribute } from '../dom-node-attribute';
-import { ParseConfig, Parser } from '../parser';
+import { Parser } from '../parser';
+import { ParseConfig } from '../parser-config.d';
 
 import { InvalidSourceError } from './parse-error';
 import { ParseSourceFile } from './parse-source-file';
@@ -63,11 +64,13 @@ export abstract class StringParser extends Parser {
    * Parse tag strings to separate attributes, deal with quotes etc
    * Same for HTML and LML.
    * @argument span source span
+   * @argument attributes array to load found attributes to
    * @argument isLML trigger LML-specific behavior
+   * @return text node if isLML is passed and inline text is found
    */
-  protected parseTag(span: ParseSourceSpan, isLML?: boolean): {text?: DOMNode; attrs: DOMNodeAttribute[]} {
+  protected parseTag(span: ParseSourceSpan, attributes: DOMNodeAttribute[], isLML?: boolean): DOMNode {
     const str = this.source.content.substring(span.start.offset, span.end.offset);
-    let attrs: DOMNodeAttribute[] = [];
+    const attrs: DOMNodeAttribute[] = [];
     let current: DOMNodeAttribute;
     let text: DOMNode;
     const len = str.length;
@@ -100,7 +103,7 @@ export abstract class StringParser extends Parser {
                 if (c === '"' || c === '\'') { // starts with quote
                   current.quote = c;
                   current.value = '';
-                  current.valueSpan = span.off(i + 1, 0);
+                  current.valueSpan = span.off(i, 1);
                 } else if (c !== ' ' && c !== '\t' && c !== '\n') { // unquoted value
                   current.value = c;
                   current.valueSpan = span.off(i, 1);
@@ -135,11 +138,11 @@ export abstract class StringParser extends Parser {
         }
       }
     }
-    attrs = attrs.filter((attr) => this.attributeErrorCheck(attr));
+    attributes.push(...attrs.filter((attr) => this.attributeErrorCheck(attr)));
     if (current && current.quote) {
-      this.errors.push(new InvalidQuoteSignWarning(current.valueSpan.off(-1, 1)));
+      this.errors.push(new InvalidQuoteSignWarning(current.valueSpan.off(0, 1)));
     }
-    return {attrs, text};
+    return text;
   }
 
   /**

@@ -1,7 +1,8 @@
 import { ASTModel } from '../ast-model';
 import { DOMNode } from '../dom-node';
 import { JSONModel } from '../json-model';
-import { ParseConfig, Parser } from '../parser';
+import { Parser } from '../parser';
+import { ParseConfig } from '../parser-config.d';
 
 import { JsonParseError } from './parse-error';
 import { ParseSourceFile } from './parse-source-file';
