@@ -9,6 +9,8 @@ import { InconsistentIndentationCharactersWarning, InconsistentIndentationWarnin
   MisplacedDirectiveWarning, MultilineAttributeIndentationWarning, TooMuchIndentationWarning } from '../parse-warning';
 import { StringParser } from '../string-parser';
 
+const INDENT_SAFE_LTRIM_RX = /.*?(?=[ \t]*[^\s])/s;
+const RTRIM_RX = /\s+$/;
 const SPC_AND_TAB_RX = /^[ \t]*/g;
 
 /**
@@ -108,7 +110,7 @@ export class LMLParser extends StringParser {
           const childIndent = indent + indentation;
           const childIndentLen = childIndent.length;
           if (text) {
-            node.sourceSpan.end = text ? text.sourceSpan.start : new ParseLocation(this.source, text.sourceSpan.start.offset - 1);
+            node.sourceSpan.end = text.sourceSpan.start;
             if (node.name === 'textarea' || text.data.trim()) {
               text.parent = node;
             }
@@ -165,20 +167,19 @@ export class LMLParser extends StringParser {
     const childIndent = indent + (sameLevel ? '' : this.config.indentation);
     const childIndentLen = childIndent.length;
     node.data = lines[i].substr(bi + indent.length + (skipFirst ? 1 : 0));
-    if (trim) {
-      node.data = node.data.trim();
-    }
     if (sameLevel) {
       lines[i] = '';
     }
     for (i++; lines[i] != null && (!lines[i].trim() || lines[i].substr(bi, childIndentLen) === childIndent); i++) {
-      const line = lines[i].substr(bi + childIndentLen);
-      node.data += '\n' + (trim ? line.trim() : line);
+      node.data += '\n' + lines[i].substr(bi + childIndentLen);
       node.sourceSpan.end = new ParseLocation(this.source, i, lines[i].length);
       lines[i] = '';
     }
     if (trim) {
-      node.data = node.data.trim();
+      node.data = sameLevel ? node.data.replace(INDENT_SAFE_LTRIM_RX, '') : node.data.trim();
+      const blockLines = node.data.split('\n');
+      const bi2 = this.idBlockIndentation(blockLines);
+      node.data = blockLines.map((line) => line.substr(bi2).replace(RTRIM_RX, '')).join('\n');
     }
   }
 }

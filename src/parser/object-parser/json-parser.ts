@@ -13,7 +13,7 @@ export class JSONParser extends ObjectParser<JSONModel> {
       case 'element': {
         const node = new DOMNode('element', parent);
         node.name = item.name;
-        node.attributes.push(...item.attributes.map((attrib) => new DOMNodeAttribute(attrib.name, attrib.value)));
+        node.attributes.push(...(item.attributes || []).map((attrib) => new DOMNodeAttribute(attrib.name, attrib.value)));
         this.parseChildren(item.children, node);
         break;
       }

@@ -7,7 +7,7 @@ import { JSONOutput } from './output/object-output/json-output';
 import { HTMLOutput } from './output/string-output/html-output';
 import { LMLOutput } from './output/string-output/lml-output';
 import { ParseConfig } from './parser-config.d';
-import { IParser } from './parser.d';
+import { ParserInterface } from './parser-interface.d';
 import { ParseLocation } from './parser/parse-location';
 import { INDENTATION_REGEX, ParseSourceFile } from './parser/parse-source-file';
 import { ParseSourceSpan } from './parser/parse-source-span';
@@ -20,7 +20,7 @@ const TAGNAME_RX = /^[a-zA-z][a-zA-Z0-9\:\-]*/;
 /**
  * Parsing base class. Serves HtmlParser and LmlParser
  */
-export abstract class Parser implements IParser {
+export abstract class Parser implements ParserInterface {
   /**
    * Top level DOM elements
    */

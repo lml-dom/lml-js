@@ -1,6 +1,6 @@
 {
   "name": "lml",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Light Meta Language. A simple-yet-powerful HTML syntax alternative",
   "keywords": [
     "lml",
@@ -19,13 +19,9 @@
   "scripts": {
     "clean": "rm -rf lib/",
     "build": "npm run clean && npm run lint && npm run test && npm run compile",
-    "compile": "tsc && sed -i \"1s/.*/\\#\\!\\/usr\\/bin\\/env\\ node/\" lib/cli.js",
-    "browserify": "npm run compile && browserify lib/index.js --standalone ParserModule -o ../lml-site/asset/lml.js",
+    "compile": "tsc && cp src/*.d.ts lib/src/",
     "lint": "tslint --project tsconfig.json",
     "test": "rm -rf .nyc_output coverage ; npm run lint && nyc --reporter=lcov --reporter=text --exclude=\"spec/**/*.ts\" --exclude=\"*.spec.ts\" --extension .ts jasmine-ts"
-  },
-  "bin": {
-    "lml": "lib/cli.js"
   },
   "author": "Greg Varsanyi",
   "license": "MIT",
@@ -35,16 +31,10 @@
   },
   "bugs": "https://github.com/lml-dom/lml-js/issues",
   "homepage": "https://lml-dom.org/",
-  "dependencies": {
-    "htmlparser2": "3.10.0",
-    "minimist": "1.2.0"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@types/htmlparser2": "3.7.31",
     "@types/jasmine": "3.3.5",
-    "@types/minimist": "1.2.0",
     "@types/node": "10.12.18",
-    "browserify": "16.2.3",
     "jasmine": "3.3.1",
     "jasmine-ts": "0.3.0",
     "nyc": "13.1.0",

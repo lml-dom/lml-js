@@ -13,13 +13,13 @@ describe('Parser', () => {
   it('does not have a text child if empty (cdata)', () => {
     const json = parseLML(`div\n$\ndiv`).toJSON();
     expect(json[1].type).toBe('cdata');
-    expect(json[1].children.length).toBe(0);
+    expect(json[1].children).toBeUndefined();
   });
 
   it('does not have a text child if empty (script)', () => {
     const json = parseLML(`div\nstyle\n\t  \ndiv`).toJSON();
     expect(json[1].name).toBe('style');
-    expect(json[1].children.length).toBe(0);
+    expect(json[1].children).toBeUndefined();
   });
 
   it('invalid tag name', () => {

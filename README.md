@@ -51,23 +51,6 @@ Translates to
 </html>
 ```
 
-## CLI
-### Install globally
-`npm install --global lml`
-
-### Usage
-`lml [options] path/to/source/file.ext`
-
-#### Options
-  `--from=TYPE`               available: `ast`, `html`, `json`, `lml`
-  `--to=TYPE`                 available: `ast`, `html`, `json`, `lml`
-  `--indentation=SPEC`        spaces or tab - use `s` or `t` (default: `ss`)
-  `--input-indentation=SPEC`  forced indentation parsing for LML input (default: automatic recoginition)
-  `--line-wrap=N`             attempt to keep output line length less than this value (default: 120)
-  `--minify`                  minimizing whitepsace in HTML, JSON, and AST outputs
-  `--no-order-attributes`     keep original attribute order
-  `--out=FILE`                save to file (default: output to console)
-
 ## Programmatical use
 ### Install for your project
 `npm install lml --save`
@@ -75,32 +58,27 @@ Translates to
 
 #### JavaScript example
 ```javascript
-// convert HTML to LML
-const parseHTML = require('lml').parseHTML;
-
-parseHTML(htmlString).toLML());
-}
-```
-
-#### TypeScript example
-```typescript
 // convert LML to HTML
-import { parseLML } from 'lml';
+const parseLML = require('lml').parseLML;
 
 parseLML(lmlString).toHTML();
-}
 ```
 
 #### Parsers
 Parser functions are exposed with the same signiture, and the returned object has the same interface:
-`parseAST(url: string, source: string | ASTModel[], parseConfig?: ParseConfig) => IParser`
-`parseHTML(url: string, source: string, parseConfig?: ParseConfig) => IParser`
-`parseJSON(url: string, source: string | JSONModel[], parseConfig?: ParseConfig) => IParser`
-`parseLML(url: string, source: string, parseConfig?: ParseConfig) => IParser`
+`parseAST(source: string | ASTModel[], parseConfig?: ParseConfig) => ParserInterface`
+`parseJSON(source: string | JSONModel[], parseConfig?: ParseConfig) => ParserInterface`
+`parseLML(source: string, parseConfig?: ParseConfig) => ParserInterface`
+
+##### Parsing HTML
+1. install [html-lml](https://github.com/lml-dom/html-lml):
+`npm install html-lml --save`
+2. use the the indentical parser from that package:
+`parseHTML(source: string, parseConfig?: ParseConfig) => ParserInterface`
 
 Parser interface:
 ```typescript
-interface IParser {
+interface ParserInterface {
   errors: ParseError[];
   toAST(config?: OutputConfig): ASTModel[];
   toHTML(config?: OutputConfig): string;
@@ -149,3 +127,6 @@ interface JSONModel {
   children?: JSONModel[];
 }
 ```
+
+## CLI
+There is a dedicated command line tool: [lml-cli](https://github.com/lml-dom/lml-cli)

@@ -19,7 +19,7 @@ export class HTMLOutput extends StringOutput {
   }
 
   public directive(node: DOMNode): string {
-    return `<${node.data}>\n`;
+    return `<${node.data}>${this.lf}`;
   }
 
   public element(node: DOMNode): string {

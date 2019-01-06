@@ -5,6 +5,12 @@ import { InconsistentIndentationCharactersWarning, InconsistentIndentationWarnin
   MisplacedDirectiveWarning, MultilineAttributeIndentationWarning, TooMuchIndentationWarning } from '../src/parser/parse-warning';
 
 describe('LmlParser', () => {
+  describe('configuration', () => {
+    it('throws on invalid indentation', () => {
+      expect(() => parseLML('div ; x', {indentation: '\t '})).toThrow();
+    });
+  });
+
   describe('hierarchy auto-recognition', () => {
     for (const [indentation, name] of Object.entries({'  ': '2 spaces', ' ': '1 space', '    ': '4 spaces', '\t': 'tab'})) {
       it(`should detect ${name} indentation`, () => {
@@ -13,9 +19,9 @@ describe('LmlParser', () => {
         expect(json[0].children[0].name).toBe('span');
         expect(json[0].children[0].children[0].type).toBe('text');
         expect(json[0].children[0].children[0].children).toBe(undefined);
-        expect(json[0].children[1]).toBe(undefined);
+        expect(json[0].children.length).toBe(1);
         expect(json[1].name).toBe('div');
-        expect(json[1].children[0]).toBe(undefined);
+        expect(json[1].children).toBeUndefined();
         expect(json[2]).toBe(undefined);
       });
     }
@@ -77,14 +83,14 @@ describe('LmlParser', () => {
     });
 
     it('is trimmed', () => {
-      const json = parseLML(`div\n\t#    hello  \n\t\t  world   \n\tdiv`).toJSON();
+      const json = parseLML(`div\n\t# hello  \n\t\t  world   \n\tdiv`).toJSON();
       expect(json[0].children[0].type).toBe('comment');
-      expect(json[0].children[0].data).toBe('hello\nworld');
+      expect(json[0].children[0].data).toBe('hello\n  world');
     });
 
     it('is not recognized after a tag', () => {
       const json = parseLML(`div # hello`).toJSON();
-      expect(json[0].children.length).toBe(0);
+      expect(json[0].children).toBeUndefined();
       expect(json[0].name).toBe('div');
       expect(json['length']).toBe(1);
     });
@@ -101,7 +107,7 @@ describe('LmlParser', () => {
     it('does not have a text child if empty', () => {
       const json = parseLML(`div\n$\ndiv`).toJSON();
       expect(json[1].type).toBe('cdata');
-      expect(json[1].children.length).toBe(0);
+      expect(json[1].children).toBeUndefined();
     });
 
     it('is found in line start', () => {
@@ -127,7 +133,7 @@ describe('LmlParser', () => {
 
     it('is not recognized after a tag', () => {
       const json = parseLML(`div $ hello`).toJSON();
-      expect(json[0].children.length).toBe(0);
+      expect(json[0].children).toBeUndefined();
       expect(json[0].name).toBe('div');
       expect(json['length']).toBe(1);
     });
@@ -149,7 +155,7 @@ describe('LmlParser', () => {
     it('is parsed as multiline block, trims', () => {
       const json = parseLML(`div\n\t; hello  \n\t\t world`).toJSON();
       expect(json[0].children[0].type).toBe('text');
-      expect(json[0].children[0].data).toBe('hello\nworld');
+      expect(json[0].children[0].data).toBe('hello\n world');
     });
 
     it('is found after tag as child, and is not multiline', () => {
@@ -184,18 +190,68 @@ describe('LmlParser', () => {
       const json = parseLML(`div\n\tspan hidden class="x" ; \n\tdiv`).toJSON();
       expect(json[0].children.length).toBe(2);
       expect(json[0].children[0].name).toBe('span');
-      expect(json[0].children[0].children.length).toBe(0);
+      expect(json[0].children[0].children).toBeUndefined();
     });
 
     it('inline text is ignored if empty (multiline)', () => {
       const json = parseLML(`div\n\tspan hidden\n\t\t\\ class="x" ; \n\tdiv`).toJSON();
       expect(json[0].children.length).toBe(2);
       expect(json[0].children[0].name).toBe('span');
-      expect(json[0].children[0].children.length).toBe(0);
+      expect(json[0].children[0].children).toBeUndefined();
     });
   });
 
   describe('Element', () => {
+    describe('text block elements', () => {
+      describe('script', () => {
+        it('gets trimmed when value is inline', () => {
+          const json = parseLML(`div\n\tscript ;  alert(); \n`).toJSON();
+          expect(json[0].children[0].name).toBe('script');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe('alert();');
+        });
+
+        it('gets block (un)indented and trimmed', () => {
+          const json = parseLML(`div\n\tscript\n\n\t\t\t\talert();\n\t\t\t\t\tworld();\t\n\n\n`).toJSON();
+          expect(json[0].children[0].name).toBe('script');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe('alert();\n\tworld();');
+        });
+      });
+
+      describe('style', () => {
+        it('gets trimmed when value is inline', () => {
+          const json = parseLML(`div\n\tstyle ;  .x { color: red; } \n`).toJSON();
+          expect(json[0].children[0].name).toBe('style');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe('.x { color: red; }');
+        });
+
+        it('gets block (un)indented and trimmed', () => {
+          const json = parseLML(`div\n\tstyle\n\n\t\t\t\t.x {\n\t\t\t\t\tcolor: red;\n\t\t\t\t}  \n\n`).toJSON();
+          expect(json[0].children[0].name).toBe('style');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe('.x {\n\tcolor: red;\n}');
+        });
+      });
+
+      describe('textarea', () => {
+        it('inline value is value safe', () => {
+          const json = parseLML(`div\n\ttextarea ; hello\n`).toJSON();
+          expect(json[0].children[0].name).toBe('textarea');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe(' hello');
+        });
+
+        it('semicolon is not parsed for child value, and is value safe', () => {
+          const json = parseLML(`div\n\ttextarea\n\t\t; hello \n`).toJSON();
+          expect(json[0].children[0].name).toBe('textarea');
+          expect(json[0].children[0].children[0].type).toBe('text');
+          expect(json[0].children[0].children[0].data).toBe('; hello ');
+        });
+      });
+    });
+
     describe('Attribute', () => {
       it('is recognized', () => {
         const json = parseLML(`div\n\tspan hidden class="x" ; hello\n`).toJSON();

@@ -1,18 +1,18 @@
 import { ASTModel } from '../../ast-model';
 import { DOMNode } from '../../dom-node';
 import { DOMNodeAttribute } from '../../dom-node-attribute';
-import { Output } from '../../output';
+import { ObjectOutput } from '../object-output';
 
 /**
  * Parses DOMNode[] to ASTModel[]
  */
-export class ASTOutput extends Output<ASTModel> {
+export class ASTOutput extends ObjectOutput<ASTModel> {
   public convert(nodes = this.nodes): ASTModel[] {
     return nodes.map((node) => this[node.type](node));
   }
 
   public cdata(node: DOMNode): ASTModel {
-    return {children: this.convert(node.children), ...this.ast(node)};
+    return this.sanitize({children: this.convert(node.children), ...this.ast(node)});
   }
 
   public comment(node: DOMNode): ASTModel {
@@ -26,7 +26,7 @@ export class ASTOutput extends Output<ASTModel> {
   public element(node: DOMNode): ASTModel {
     const attributes: {[name: string]: string} = {};
     DOMNodeAttribute.sort(node.attributes, this.config.orderAttributes).forEach((attrib) => attributes[attrib.name] = attrib.value || '');
-    return {name: node.name, attribs: attributes, children: this.convert(node.children), ...this.ast(node)};
+    return this.sanitize({name: node.name, attribs: attributes, children: this.convert(node.children), ...this.ast(node)});
   }
 
   public text(node: DOMNode): ASTModel {

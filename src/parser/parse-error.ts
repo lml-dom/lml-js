@@ -41,12 +41,6 @@ export class ParseError {
   }
 }
 
-export class HtmlParseError extends ParseError {
-  constructor(span: ParseSourceSpan, msg: string) {
-    super(span, msg);
-  }
-}
-
 export class InvalidConfigurationError extends ParseError {
   constructor(msg: string) {
     super(null, msg);

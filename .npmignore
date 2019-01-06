@@ -12,6 +12,8 @@ npm-debug.log
 .gitignore
 
 spec/
+lib/spec/
 src/
 tsconfig.json
 tslint.json
+/*.ts
