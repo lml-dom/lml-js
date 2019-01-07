@@ -9,6 +9,24 @@ export class ParseWarning extends ParseError {
   }
 }
 
+export class AttribsMustBeKeyValueDictionaryWarning extends ParseWarning {
+  constructor() {
+    super(null, 'Property `attribs` must be a key-value dictionary in AST');
+  }
+}
+
+export class AttributesMustBeAnArrayWarning extends ParseWarning {
+  constructor() {
+    super(null, 'Property `attributes` must be an array of attribute objects');
+  }
+}
+
+export class ChildrenMustBeAnArrayWarning extends ParseWarning {
+  constructor() {
+    super(null, 'Property `children` must be an array of element objects');
+  }
+}
+
 export class InconsistentIndentationWarning extends ParseWarning {
   constructor(span: ParseSourceSpan) {
     super(span, 'Inconsistent indentation step');
@@ -22,13 +40,13 @@ export class InconsistentIndentationCharactersWarning extends ParseWarning {
 }
 
 export class InvalidAttributeNameWarning extends ParseWarning {
-  constructor(span: ParseSourceSpan) {
+  constructor(span?: ParseSourceSpan) {
     super(span, 'Invalid attribute name');
   }
 }
 
 export class InvalidAttributeValueWarning extends ParseWarning {
-  constructor(span: ParseSourceSpan) {
+  constructor(span?: ParseSourceSpan) {
     super(span, 'Invalid attribute value');
   }
 }
@@ -54,6 +72,12 @@ export class InvalidQuoteSignWarning extends ParseWarning {
 export class InvalidTagNameWarning extends ParseWarning {
   constructor(span: ParseSourceSpan) {
     super(span, 'Invalid tag name');
+  }
+}
+
+export class InvalidTypeWarning extends ParseWarning {
+  constructor(type: string) {
+    super(null, 'Invalid type: ' + type);
   }
 }
 

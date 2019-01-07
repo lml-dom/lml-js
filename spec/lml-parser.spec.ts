@@ -4,7 +4,7 @@ import { parseLML } from '../index';
 import { InconsistentIndentationCharactersWarning, InconsistentIndentationWarning, InvalidMultilineAttributeWarning,
   MisplacedDirectiveWarning, MultilineAttributeIndentationWarning, TooMuchIndentationWarning } from '../src/parser/parse-warning';
 
-describe('LmlParser', () => {
+describe('LMLParser', () => {
   describe('configuration', () => {
     it('throws on invalid indentation', () => {
       expect(() => parseLML('div ; x', {indentation: '\t '})).toThrow();

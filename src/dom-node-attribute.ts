@@ -38,6 +38,11 @@ export class DOMNodeAttribute {
   public quote?: '\'' | '"';
 
   /**
+   * Value of the attribute. Null means attribute-name only
+   */
+  public value: string;
+
+  /**
    * Order attributes
    * @argument attributes Array of attributes to reorder
    * @argument order sorting logic. Defaults to 'ascii'
@@ -67,7 +72,9 @@ export class DOMNodeAttribute {
    * @argument sourceSpan Source full string span (includes name, value, quotes etc)
    * @argument valueSpan Source value string span (includes value, excluding quotes)
    */
-  constructor(public name: string, public value: string, public sourceSpan?: ParseSourceSpan, public valueSpan?: ParseSourceSpan) {}
+  constructor(public name: string, value: string, public sourceSpan?: ParseSourceSpan, public valueSpan?: ParseSourceSpan) {
+    this.value = value && typeof value === 'string' ? value : null;
+  }
 
   /**
    * Stringify an attribute to HTML or LML syntax

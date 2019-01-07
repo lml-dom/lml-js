@@ -2,7 +2,8 @@ import { ASTModel } from '../../ast-model';
 import { DOMNode } from '../../dom-node';
 import { DOMNodeAttribute } from '../../dom-node-attribute';
 import { ObjectParser } from '../object-parser';
-import { JsonParseError } from '../parse-error';
+import { AttribsMustBeKeyValueDictionaryWarning, InvalidAttributeNameWarning, InvalidAttributeValueWarning,
+  InvalidTypeWarning } from '../parse-warning';
 
 /**
  * Parses ASTModel[] to DOMNode[]
@@ -15,20 +16,30 @@ export class ASTParser extends ObjectParser<ASTModel> {
       case 'style': {
         const node = new DOMNode('element', parent);
         node.name = item.name;
-        const attribs = item.attribs && typeof item.attribs === 'object' && !Array.isArray(item.attribs) ? item.attribs : {};
-        for (const [attrib, value] of Object.entries<string>(attribs)) {
-          if (value && typeof value === 'object') {
-            throw new JsonParseError('Attributes must have string (or empty) values. Key: ' + attrib);
+
+        // attributes
+        if (typeof item.attribs !== 'undefined') {
+          if (item.attribs && typeof item.attribs === 'object' && !Array.isArray(item.attribs)) {
+            for (const [attrib, value] of Object.entries<string>(item.attribs)) {
+              if (!attrib) {
+                this.errors.push(new InvalidAttributeNameWarning());
+              } else if (value != null && typeof value !== 'string') {
+                this.errors.push(new InvalidAttributeValueWarning());
+              } else {
+                node.attributes.push(new DOMNodeAttribute(attrib, value));
+              }
+            }
           } else {
-            node.attributes.push(new DOMNodeAttribute(attrib, value));
+            this.errors.push(new AttribsMustBeKeyValueDictionaryWarning());
           }
         }
-        this.parseChildren(item.children || [], node);
+
+        this.parseChildren(item.children, node);
         break;
       }
 
       case 'cdata': {
-        this.parseChildren(item.children || [], new DOMNode('cdata', parent));
+        this.parseChildren(item.children, new DOMNode('cdata', parent));
         break;
       }
 
@@ -40,7 +51,7 @@ export class ASTParser extends ObjectParser<ASTModel> {
       }
 
       default: {
-        throw new JsonParseError('Unknown type: ' + (item.type || 'unspecified'));
+        this.errors.push(new InvalidTypeWarning(item.type));
       }
     }
   }

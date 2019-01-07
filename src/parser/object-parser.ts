@@ -6,6 +6,7 @@ import { ParseConfig } from '../parser-config.d';
 
 import { JsonParseError } from './parse-error';
 import { ParseSourceFile } from './parse-source-file';
+import { ChildrenMustBeAnArrayWarning } from './parse-warning';
 
 /**
  * Parses objects to to DOMNode[]
@@ -31,7 +32,7 @@ export abstract class ObjectParser<TSource = ASTModel | JSONModel> extends Parse
       } catch (err) {
         throw new JsonParseError(String(err));
       }
-    } else {
+    } else if (src && typeof src === 'object') {
       let str: string;
       this.srcObj = <TSource[]>src;
       try {
@@ -40,13 +41,14 @@ export abstract class ObjectParser<TSource = ASTModel | JSONModel> extends Parse
         throw new JsonParseError(String(err));
       }
       this.source = new ParseSourceFile(str, this.config.url);
+    } else {
+      throw new JsonParseError('JSON object or JSON string is expected');
     }
-
     if (!Array.isArray(this.srcObj)) {
       throw new JsonParseError('Array was expected');
-    } else {
-      this.parse();
     }
+
+    this.parse();
   }
 
   protected parse(): void {
@@ -62,12 +64,14 @@ export abstract class ObjectParser<TSource = ASTModel | JSONModel> extends Parse
    * @argument parent container object (or null) that is already processed into a DOMNode
    */
   protected parseChildren(items: TSource[], parent: DOMNode): void {
-    if (items && !Array.isArray(items)) {
-      throw new JsonParseError('Property `children` must always be an array');
-    }
-
-    for (const item of items) {
-      this.parseItem(item, parent);
+    if (items != null) {
+      if (!Array.isArray(items)) {
+        this.errors.push(new ChildrenMustBeAnArrayWarning());
+      } else {
+        for (const item of items) {
+          this.parseItem(item, parent);
+        }
+      }
     }
   }
 
