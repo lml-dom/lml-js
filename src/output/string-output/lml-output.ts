@@ -7,9 +7,7 @@ import { StringOutput } from '../string-output';
  */
 export class LMLOutput extends StringOutput {
   public cdata(node: DOMNode): string {
-    const childIndentation = this.indentation(node);
-    const src = this.textChildren(node).map((child, i) => (i ? childIndentation : '') + this.indentMultilineData(child, false)).join('\n');
-    return `${this.indentation(node)}${LML_SIGN.cdata}${src}\n`;
+    return `${this.indentation(node)}${LML_SIGN.cdata}${this.indentMultilineData(this.textChild(node), false)}\n`;
   }
 
   public comment(node: DOMNode): string {
@@ -27,8 +25,18 @@ export class LMLOutput extends StringOutput {
     const tag = this.multilineTag([`${indentation}${node.name}`, ...this.attributesString(node)], childIndentation, '', '\\ ');
 
     if (TEXT_BLOCK_ELEMENTS.includes(node.name)) {
-      const src = this.textChildren(node).map((child) => childIndentation + this.indentMultilineData(child, false)).join('\n');
-      return node.name === 'textarea' || src.trim() ? `${tag}\n${src}\n` : `${tag}\n`;
+      const src = childIndentation + this.indentMultilineData(this.textChild(node), false);
+      let trimmed: string;
+      if (node.name === 'textarea' ? src.length > childIndentation.length : (trimmed = src.trim())) {
+        if (node.name !== 'textarea' && trimmed.indexOf('\n') === -1) {
+          const oneLine = `${tag} ; ${trimmed}`;
+          if (oneLine.length <= this.config.lineWrap) {
+            return `${oneLine}\n`;
+          }
+        }
+        return `${tag}\n${src}\n`;
+      }
+      return `${tag}\n`;
     }
 
     const content = node.children.map((child) => this[child.type](child)).join('');

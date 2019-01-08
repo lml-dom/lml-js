@@ -11,7 +11,7 @@ export abstract class ObjectOutput<T> extends Output<T> {
     for (const [key, value] of Object.entries(obj)) {
       if (Array.isArray(value) && !value.length) {
         delete obj[key];
-      } else if (value && typeof value === 'object' && !Object.keys(obj).length) {
+      } else if (value && typeof value === 'object' && !Object.keys(value).length) {
         delete obj[key];
       }
     }

@@ -146,8 +146,6 @@ export class LMLParser extends StringParser {
         }
       }
     }
-
-    this.postProcess();
   }
 
   /**

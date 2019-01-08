@@ -38,10 +38,10 @@ export abstract class StringParser extends Parser {
     this.config = {...this.config, ...(config || {})};
     if (typeof src !== 'string') {
       throw new InvalidSourceError();
-    } else {
-      this.source = new ParseSourceFile(src, this.config.url);
-      this.parse();
     }
+    this.source = new ParseSourceFile(src, this.config.url);
+    this.parse();
+    this.postProcess();
   }
 
   /**

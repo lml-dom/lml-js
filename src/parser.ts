@@ -82,15 +82,15 @@ export abstract class Parser implements ParserInterface {
   }
 
   /**
-   * Find the number of whitespace characters that occurs on every non-void line
+   * Find the number of whitespace characters that occurs on every non-empty line
    * @argument lines source to check. Defaults to source content lines
+   * @return number of indentation characters that are found in every non-empty line
    */
   protected idBlockIndentation(lines = this.source.lines): number {
     let blockIndentation: number;
     for (const line of lines) {
       if (blockIndentation !== 0 && line.trim()) {
         const indentation = line.match(INDENTATION_REGEX)[0].length;
-
         if (blockIndentation == null || indentation < blockIndentation) {
           blockIndentation = indentation;
           if (indentation < 1) {
@@ -107,16 +107,21 @@ export abstract class Parser implements ParserInterface {
    * @argument node parent element
    */
   protected mergeTextChildren(node: DOMNode): void {
-    const children = node.children || [];
-    for (let i = children.length - 1; i > 0; i--) {
-      const child = children[i];
-      const previous = children[i - 1];
+    for (let i = node.children.length - 1; i > 0; i--) {
+      const child = node.children[i];
+      const previous = node.children[i - 1];
       if (child.type === 'text' && previous.type === 'text') {
-        previous.data += child.data;
+        if (child.data.trim()) {
+          if (previous.data.trim()) {
+            previous.data += '\n' + child.data;
+          } else {
+            previous.data = child.data;
+          }
+        }
         if (previous.sourceSpan && child.sourceSpan) {
           previous.sourceSpan.end = child.sourceSpan.end;
         }
-        children.splice(i, 1);
+        node.children.splice(i, 1);
       }
     }
   }

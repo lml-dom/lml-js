@@ -78,14 +78,6 @@ export abstract class StringOutput extends Output<string> {
   }
 
   /**
-   * Get combined string for text children
-   * @argument node parent node
-   */
-  protected textChildrenString(node: DOMNode): string {
-    return this.textChildren(node).map((child) => child.data).join('');
-  }
-
-  /**
    * Indent multiline node data string (for text or comment)
    */
   protected wrapLines(value: string, childIndentation: string): string {

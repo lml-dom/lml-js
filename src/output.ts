@@ -56,10 +56,15 @@ export abstract class Output<TOutput> {
   public abstract text(node: DOMNode): TOutput;
 
   /**
-   * Filter to text type children only. Useful for text block items like CDATA, textarea, script, and style
+   * Filter to get text child, or return empty string
    * @argument node parent node
+   * @return text node (eiter child or fake)
    */
-  public textChildren(node: DOMNode): DOMNode[] {
-    return node.children.filter((child) => child.type === 'text');
+  public textChild(node: DOMNode): DOMNode {
+    const text = node.children.find((child) => child.type === 'text') || new DOMNode('text');
+    if (text.parent !== node) { // set parent for fake text node without triggering actual addition to parent's children property
+      text['_parent'] = node;
+    }
+    return text;
   }
 }

@@ -49,6 +49,7 @@ export abstract class ObjectParser<TSource = ASTModel | JSONModel> extends Parse
     }
 
     this.parse();
+    this.postProcess();
   }
 
   protected parse(): void {
